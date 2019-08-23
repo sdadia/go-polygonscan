@@ -1,0 +1,37 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      # Update package managers
+      - sudo apt-get update
+      - pip install --upgrade pip
+
+      # Download project build/test requirements
+      - pip install --upgrade awscli
+      - pip install aws-sam-cli
+      - pip install --upgrade jsonschema
+      - pip install mock
+      
+
+  pre_build:
+    commands:
+      # Execute all unittests present in Tests/UnitTests
+      - python -m unittest discover Tests/UnitTests
+  
+  build:
+    commands:
+      # Build Service Template for usage in deployment
+      - sam build
+      - sam package --template-file API/rest_api_parent.yaml --s3-bucket $S3_BUCKET --output-template em-rest-api.yml
+      
+artifacts:
+  secondary-artifacts:
+    template_artifact:
+      files:
+        - trip-calculation.yml
+    integration_test_artifact:
+      files:
+        - 'Tests/IntegrationTests/*'
+      discard-paths: yes
+  

@@ -1,0 +1,179 @@
+#
+#   template.yml 
+#
+#   Parent template defining required resources for the pvcam cloud trip calculation/querying service.
+#
+#
+#   Template structure maintained by platform team. 
+#   Please reach out to daniel@pvcameras.com or rob@pvcameras.com for any platform requirement changes.
+#
+
+Parameters:
+
+  ProjectId:
+    Type: String
+    Description: Project ID used for identifying project resources
+    Default: pvcam
+  
+  Stage: 
+    Type: String
+    Description: Determines whether or not to deploy production resources
+  
+  ServiceName:
+    Type: String
+    Description: Name of the current service
+    Default: trip-calculation
+
+Resources:
+
+  #
+  # Stores list of spans for telematics trip calculations
+  #
+  # *** SUBJECT TO CHANGE AS OPTIMIZATIONS ARE IMPLEMENTED IN DDB FOR TS DATA ***
+  #
+  SpanTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - 
+          AttributeName: deviceId
+          AttributeType: S
+        - 
+          AttributeName: spanId
+          AttributeType: S
+      KeySchema:
+        -
+          AttributeName: deviceId
+          KeyType: HASH
+        -
+          AttributeName: spanId
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      
+  
+  #
+  # Stores timeseries records that have been tagged with spanIds
+  #
+  # *** SUBJECT TO CHANGE AS OPTIMIZATIONS ARE IMPLEMENTED IN DDB FOR TS DATA ***
+  #
+  TimeseriesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - 
+          AttributeName: spanId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        -
+          AttributeName: spanId
+          KeyType: HASH
+        -
+          AttributeName: timestamp
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      
+  #
+  # Receives a timeseries IoT record from Kinesis
+  # Determines the span the record belongs to
+  # Creates a timeseries DDB record from the data
+  # Tags the timeseries DDB record with SpanId
+  # Inserts the record into DDB
+  #
+  CreateTimeseriesRecord:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Join
+        - '-'
+        - - !Ref ProjectId
+          - !Ref Stage
+          - !Ref ServiceName
+          - CreateTimeseriesRecord
+      Handler: index.handler
+      Timeout: 60
+      CodeUri: Functions/CreateTimeseriesRecord/
+      Runtime: python3.6
+      Role: !GetAtt LambdaExecutionRoleDDB.Arn 
+      Environment:
+        Variables:
+          SpanTable: !Ref SpanTable
+          TimeseriesTable: !Ref TimeseriesTable
+      Events:
+        KinesisSource:
+          Type: Kinesis
+            Properties:
+              Stream: arn:aws:kinesis:us-east-1:123456789012:stream/my-stream
+              StartingPosition: TRIM_HORIZON
+              BatchSize: 100
+              Enabled: false
+
+  #
+  # Invoked via external Lambda function
+  # Looks up span table for trip spans for given timerange
+  # Calculates Trips given spans retrieved
+  # Returns trips + spans in response
+  #
+  CalculateTrips:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Join
+        - '-'
+        - - !Ref ProjectId
+          - !Ref Stage
+          - !Ref ServiceName
+          - CalculateTrips
+      Handler: index.handler
+      Timeout: 60
+      CodeUri: Functions/CalculateTrips/
+      Runtime: python3.6
+      Role: !GetAtt LambdaExecutionRoleDDB.Arn 
+      Environment:
+        Variables:
+          SpanTable: !Ref SpanTable
+          TimeseriesTable: !Ref TimeseriesTable
+      
+  #
+  # Execution Role for Lambda functions within this service that require
+  # access to Span/Timeseries DDB Tables
+  #
+  LambdaExecutionRoleDDB:
+    Type: 'AWS::IAM::Role'
+    Description: IAM Execution Role for CreateTimeseries Record Function
+    Properties:
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      RoleName: !Sub
+        - ${ProjectId}-${ServiceName}-LambdaExecutionRoleDDB-${Stage}
+        - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName, Stage: !Ref Stage }
+      Policies:
+        - PolicyName: DDB
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:BatchReadItem'
+                Resource: 
+                  - !Ref SpanTable
+                  - !Ref TimeseriesTable
+                Effect: Allow
+        
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
