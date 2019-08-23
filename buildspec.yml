@@ -23,7 +23,7 @@ phases:
     commands:
       # Build Service Template for usage in deployment
       - sam build
-      - sam package --template-file API/rest_api_parent.yaml --s3-bucket $S3_BUCKET --output-template em-rest-api.yml
+      - sam package --template-file template.yml --s3-bucket $S3_BUCKET --output-template trip-calculation.yml
       
 artifacts:
   secondary-artifacts:
