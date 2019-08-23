@@ -172,8 +172,8 @@ Resources:
                   - 'dynamodb:BatchWriteItem'
                   - 'dynamodb:BatchReadItem'
                 Resource: 
-                  - !Ref SpanTable
-                  - !Ref TimeseriesTable
+                  - !GetAtt SpanTable.Arn
+                  - !GetAtt TimeseriesTable.Arn
                 Effect: Allow
         
       AssumeRolePolicyDocument:
