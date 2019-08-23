@@ -2,7 +2,8 @@ import sys
 import os
 
 """
-Following line used to add a path to the projects base directory to the python runtime, allowing for references to 'Functions' directory
+Following line used to add a path to the projects base directory for the python runtime, 
+allowing for references to 'Functions' directory
 
 Current Sys Path Example:
 ..../trip-calculation/Tests/UnitTests/test_create_timeseries_record.py

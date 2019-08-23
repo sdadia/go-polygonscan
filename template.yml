@@ -8,6 +8,11 @@
 #   Please reach out to daniel@pvcameras.com or rob@pvcameras.com for any platform requirement changes.
 #
 
+AWSTemplateFormatVersion: 2010-09-09
+Transform:
+- AWS::Serverless-2016-10-31
+
+
 Parameters:
 
   ProjectId:
