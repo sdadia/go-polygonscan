@@ -103,14 +103,15 @@ Resources:
         Variables:
           SpanTable: !Ref SpanTable
           TimeseriesTable: !Ref TimeseriesTable
-      Events:
-        KinesisSource:
-          Type: Kinesis
-            Properties:
-              Stream: arn:aws:kinesis:us-east-1:123456789012:stream/my-stream
-              StartingPosition: TRIM_HORIZON
-              BatchSize: 100
-              Enabled: false
+      # Input Event Pending Kinesis Stream Creation For Decompressed/Enriched Data 
+      # Events:
+      #   KinesisSource:
+      #     Type: Kinesis
+      #     Properties:
+      #       Stream: arn:aws:kinesis:us-east-1:123456789012:stream/my-stream
+      #       StartingPosition: TRIM_HORIZON
+      #       BatchSize: 100
+      #       Enabled: false
 
   #
   # Invoked via external Lambda function
