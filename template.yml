@@ -183,3 +183,11 @@ Resources:
             Principal:
               Service:
                 - lambda.amazonaws.com
+
+Outputs:
+  CreateTimeseriesRecord_Export:
+    # Used by the following:
+    # RestAPI: getVehicleTrips
+    Value: !Ref CreateTimeseriesRecord
+    Export:
+      Name: !Sub "${ProjectId}-CreateTimeseriesRecord-${Stage}"
