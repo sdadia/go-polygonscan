@@ -185,7 +185,11 @@ Resources:
                 - lambda.amazonaws.com
 
 Outputs:
+<<<<<<< HEAD
   CreateTimeseriesRecordExport:
+=======
+  CreateTimeseriesRecord_Export:
+>>>>>>> 7f7d339f8c90d44119205fdd07b64ba878e90c6c
     # Used by the following:
     # RestAPI: getVehicleTrips
     Value: !Ref CreateTimeseriesRecord
