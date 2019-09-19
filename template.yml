@@ -93,12 +93,12 @@ Resources:
   CreateTimeseriesRecord:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Join
-        - '-'
-        - - !Ref ProjectId
-          - !Ref Stage
-          - !Ref ServiceName
-          - CreateTimeseriesRecord
+      # FunctionName: !Join
+      #   - '-'
+      #   - - !Ref ProjectId
+      #     - !Ref Stage
+      #     - !Ref ServiceName
+      #     - CreateTimeseriesRecord
       Handler: index.handler
       Timeout: 60
       CodeUri: Functions/CreateTimeseriesRecord/
@@ -127,12 +127,12 @@ Resources:
   CalculateTrips:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Join
-        - '-'
-        - - !Ref ProjectId
-          - !Ref Stage
-          - !Ref ServiceName
-          - CalculateTrips
+      # FunctionName: !Join
+      #   - '-'
+      #   - - !Ref ProjectId
+      #     - !Ref Stage
+      #     - !Ref ServiceName
+      #     - CalculateTrips
       Handler: index.handler
       Timeout: 60
       CodeUri: Functions/CalculateTrips/
@@ -185,7 +185,7 @@ Resources:
                 - lambda.amazonaws.com
 
 Outputs:
-  CreateTimeseriesRecord_Export:
+  CreateTimeseriesRecordExport:
     # Used by the following:
     # RestAPI: getVehicleTrips
     Value: !Ref CreateTimeseriesRecord
