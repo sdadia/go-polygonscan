@@ -31,6 +31,16 @@ Parameters:
 
 Resources:
 
+  # ODM Layer for use with trip calculation functions.
+  pvappsOdmDev:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: pvapps-odm-dev
+      ContentUri: Layers/pvapps-odm-dev.zip
+      CompatibleRuntimes:
+        - python3.6
+      RetentionPolicy: Retain
+
   #
   # Stores list of spans for telematics trip calculations
   #
