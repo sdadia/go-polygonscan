@@ -6,6 +6,7 @@ phases:
       # Update package managers
       - sudo apt-get update
       - pip install --upgrade pip
+      - sudo apt-get install zip -y
 
       # Download project build/test requirements
       - pip install --upgrade awscli
