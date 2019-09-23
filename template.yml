@@ -82,7 +82,44 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
-      
+
+  #
+  # Stores aggregated metrics for a given span ID
+  #
+  # *** SUBJECT TO CHANGE AS OPTIMIZATIONS ARE IMPLEMENTED IN DDB FOR AGG DATA ***
+  #
+  AggregateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - 
+          AttributeName: spanId_MetricType
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        -
+          AttributeName: spanId_MetricType
+          KeyType: HASH
+        -
+          AttributeName: timestamp
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+  #
+  # Receives telematics records that have been tagged with SpanIds already
+  # Data is used by consumers for aggregations and insertion into timeseries data stores
+  #
+  TaggedDataStream:
+    Type: AWS::Kinesis::Stream
+    Properties: 
+      ShardCount: 1
+      Tags: 
+        - Key: Project
+          Value: !Ref ProjectId
+
   #
   # Receives a timeseries IoT record from Kinesis
   # Determines the span the record belongs to
@@ -93,12 +130,6 @@ Resources:
   CreateTimeseriesRecord:
     Type: AWS::Serverless::Function
     Properties:
-      # FunctionName: !Join
-      #   - '-'
-      #   - - !Ref ProjectId
-      #     - !Ref Stage
-      #     - !Ref ServiceName
-      #     - CreateTimeseriesRecord
       Handler: index.handler
       Timeout: 60
       CodeUri: Functions/CreateTimeseriesRecord/
@@ -127,12 +158,6 @@ Resources:
   CalculateTrips:
     Type: AWS::Serverless::Function
     Properties:
-      # FunctionName: !Join
-      #   - '-'
-      #   - - !Ref ProjectId
-      #     - !Ref Stage
-      #     - !Ref ServiceName
-      #     - CalculateTrips
       Handler: index.handler
       Timeout: 60
       CodeUri: Functions/CalculateTrips/
@@ -142,7 +167,57 @@ Resources:
         Variables:
           SpanTable: !Ref SpanTable
           TimeseriesTable: !Ref TimeseriesTable
-      
+
+  #
+  # Invoked via Kinesis Stream
+  # Calculates average speed value for a device in 1 minute aggregations
+  # Inserts calculated records into aggregation DDB table
+  #
+  SpeedAggregations:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      Timeout: 60
+      CodeUri: Functions/SpeedAggregations/
+      Runtime: python3.6
+      Role: !GetAtt LambdaExecutionRoleDDB.Arn 
+      Environment:
+        Variables:
+          AggDynamoDBTableName: !Ref AggregateTable
+      Events:
+        KinesisSource:
+          Type: Kinesis
+          Properties:
+            Stream: !GetAtt TaggedDataStream.Arn
+            StartingPosition: TRIM_HORIZON
+            BatchSize: 100
+            Enabled: false
+
+  #
+  # Invoked via Kinesis Stream
+  # Calculates average speed value for a device in 1 minute aggregations
+  # Inserts calculated records into aggregation DDB table
+  #
+  InsertTSRecords:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      Timeout: 60
+      CodeUri: Functions/BatchInsertTSRecords/
+      Runtime: python3.6
+      Role: !GetAtt LambdaExecutionRoleDDB.Arn 
+      Environment:
+        Variables:
+          TimeseriesTable: !Ref TimeseriesTable
+      Events:
+        KinesisSource:
+          Type: Kinesis
+          Properties:
+            Stream: !GetAtt TaggedDataStream.Arn
+            StartingPosition: TRIM_HORIZON
+            BatchSize: 100
+            Enabled: false
+
   #
   # Execution Role for Lambda functions within this service that require
   # access to Span/Timeseries DDB Tables
@@ -174,6 +249,7 @@ Resources:
                 Resource: 
                   - !GetAtt SpanTable.Arn
                   - !GetAtt TimeseriesTable.Arn
+                  - !GetAtt AggregateTable.Arn
                 Effect: Allow
         
       AssumeRolePolicyDocument:
