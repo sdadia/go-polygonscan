@@ -1,0 +1,2 @@
+amazon-dax-client
+boto3
