@@ -358,4 +358,4 @@ def handler(event, context):
     trips = {"trips": list(trips.values())}
     print(trips)
 
-    return {"body": json.dumps(trips)}
+    return json.dumps(trips)
