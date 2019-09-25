@@ -270,7 +270,7 @@ Resources:
               Service:
                 - lambda.amazonaws.com
 
-Outputs:
+# Outputs:
 
   # CreateTimeseriesRecordExport:
   #   # Used by the following:
