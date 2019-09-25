@@ -13,13 +13,14 @@ phases:
       - pip install aws-sam-cli
       - pip install --upgrade jsonschema
       - pip install mock
+      - pip install pandas
       - pip install pvapps-odm-dev --extra-index-url https://gy6o8w1na5.execute-api.us-east-1.amazonaws.com/Prod
       
 
-  pre_build:
-    commands:
+  # pre_build:
+  #   commands:
       # Execute all unittests present in Tests/UnitTests
-      - python -m unittest discover Tests/UnitTests
+      # - python -m unittest discover Tests/UnitTests
   
   build:
     commands:
