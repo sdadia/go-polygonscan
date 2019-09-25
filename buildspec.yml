@@ -27,7 +27,6 @@ phases:
       # ODM Layer Creation commands
       - mkdir -p Layers/python
       - pip install pvapps-odm-dev --extra-index-url https://gy6o8w1na5.execute-api.us-east-1.amazonaws.com/Prod -t Layers/python/
-      - pip install aggregation_lib --extra-index-url https://gy6o8w1na5.execute-api.us-east-1.amazonaws.com/Prod
       - pip install jsonschema -t Layers/python/
       - cd Layers
       - zip -r pvapps-odm-dev.zip python 
