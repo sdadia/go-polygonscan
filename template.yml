@@ -272,9 +272,9 @@ Resources:
 
 Outputs:
 
-  CreateTimeseriesRecordExport:
-    # Used by the following:
-    # RestAPI: getVehicleTrips
-    Value: !Ref CreateTimeseriesRecord
-    Export:
-      Name: !Sub "${ProjectId}-CreateTimeseriesRecord-${Stage}"
+  # CreateTimeseriesRecordExport:
+  #   # Used by the following:
+  #   # RestAPI: getVehicleTrips
+  #   Value: !Ref CreateTimeseriesRecord
+  #   Export:
+  #     Name: !Sub "${ProjectId}-CreateTimeseriesRecord-${Stage}"
