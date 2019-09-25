@@ -1,4 +1,2 @@
 pandas
-dynamo_helper
-aggregation_lib
 boto3
