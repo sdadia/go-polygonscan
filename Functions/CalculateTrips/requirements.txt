@@ -1,5 +1,4 @@
 jsonschema
-dynamo_helper
 pandas
 numpy
 boto3
