@@ -1,5 +1,5 @@
-from base64 import b64encode, b64decode
-from boto3.dynamodb.conditions import Key, Attr, AttributeNotExists
+from base64 import b64decode
+from boto3.dynamodb.conditions import Key, Attr
 from pprint import pprint, pformat
 import dynamo_helper
 import amazondax
@@ -15,13 +15,18 @@ import os
 import sys
 import time
 import uuid
+from pvapps_odm.Schema.models import SpanModel
+from pvapps_odm.session import dynamo_session
+
+sess = dynamo_session(SpanModel)
+
 
 root = logging.getLogger()
 if root.handlers:
     for handler in root.handlers:
         root.removeHandler(handler)
 logging.basicConfig(
-    level=logging.ERROR,
+    level=logging.INFO,
     format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -32,11 +37,12 @@ logging.basicConfig(
 ##                                                  ##
 ######################################################
 env_vars = {}
-envVarsList = ["SpanDynamoDBTableName", "DAXUrl"]
+envVarsList = ["SpanDynamoDBTableName", "DAXUrl", "OutputKinesisStreamName"]
 for var in envVarsList:
     if var in os.environ.keys():
         env_vars[var] = os.environ[var]
-
+env_vars["SpanDynamoDBTableName"] = SpanModel.Meta.table_name
+logging.info("Environment variables are : {}".format(env_vars))
 ######################################################
 ##                                                  ##
 ##      Database Connection Initialisation          ##
@@ -65,6 +71,10 @@ kinesis_client = boto3.client("kinesis")
 
 
 DATETIME_FOMRAT = "%Y-%m-%d %H:%M:%S"
+
+################################
+# ODM imports
+################################
 
 
 def generate_uuid():
@@ -164,8 +174,6 @@ def format_data_pts_in_rec(
 def sort_data_by_date(data_list, attribute_to_sort, reverse=False):
     """
     Sorts array of dicts by attribute provided, given that the attribute is formatted as datetime
-    
-    TODO: Format as epoch
     """
 
     data_sorted = sorted(
@@ -491,7 +499,7 @@ def update_modified_device_spans_in_dynamo(device_spans_dict):
 
         m_dev["spans"] = json.dumps(m_dev["spans"])
         # del m_dev["modified"]
-
+    pprint(modified_devices_span_dict)
     logging.info(
         "Converting to json modified device spans : {}".format(
             modified_devices_span_dict
@@ -524,6 +532,41 @@ def update_modified_device_spans_in_dynamo(device_spans_dict):
     logging.info("updating modified device spans in dynamo...Done")
 
 
+def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
+    logging.info("updating modified device spans in dynamo using ODM")
+
+    # modified_devices_span_dict = [
+    # x for x in device_spans_dict if "modified" in x
+    # ]
+    modified_devices_span_dict = device_spans_dict
+
+    for m_dev in modified_devices_span_dict:
+        # convert time to sstring
+        for sp in m_dev["spans"]:
+            sp["start_time"] = str(sp["start_time"])
+            sp["end_time"] = str(sp["end_time"])
+
+        m_dev["spans"] = json.dumps(m_dev["spans"])
+
+    pprint(modified_devices_span_dict)
+    logging.info(
+        "Converting to json modified device spans : {}".format(
+            modified_devices_span_dict
+        )
+    )
+
+    spans_dict_as_OMD_spanmodel = []
+    for x in modified_devices_span_dict:
+        data_for_ODM = {"deviceId": x["deviceId"], "spans": x["spans"]}
+        spans_dict_as_OMD_spanmodel.append(SpanModel(**data_for_ODM))
+    pprint(spans_dict_as_OMD_spanmodel)
+
+    sess.add_items(spans_dict_as_OMD_spanmodel)
+    sess.commit_items()
+
+    logging.info("updating modified device spans in dynamo using ODM...Done")
+
+
 def send_tagged_data_to_kinesis(tagged_data):
     logging.info("Sending tagged data to kinesis")
 
@@ -543,7 +586,9 @@ def send_tagged_data_to_kinesis(tagged_data):
     chunks = _grouper(tagged_data_as_kinesis_record_format, 25)
     for c in chunks:
         response = kinesis_client.put_records(
-            Records=c, StreamName="dan-span-output"
+            # Records=c, StreamName="dan-span-output"
+            Records=c,
+            StreamName=env_vars["OutputKinesisStreamName"],
         )
         logging.info(
             "Response from Outputing to Kinesis Stream : {}".format(response)
@@ -692,7 +737,8 @@ def handler(event, context):
     # batch update the devices whose spans we updated #
     ###################################################
 
-    update_modified_device_spans_in_dynamo(device_spans_dict)
+    # update_modified_device_spans_in_dynamo(device_spans_dict)
+    update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict)
 
     #########################################
     # Writing tagged data to kinesis stream #
