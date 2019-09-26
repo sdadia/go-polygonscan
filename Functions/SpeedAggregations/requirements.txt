@@ -1,4 +1,4 @@
---find-links https://gy6o8w1na5.execute-api.us-east-1.amazonaws.com/Prod
+--extra-index-url https://gy6o8w1na5.execute-api.us-east-1.amazonaws.com/Prod
 pandas
 aggregation-lib
 boto3
