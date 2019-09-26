@@ -191,7 +191,7 @@ Resources:
       Timeout: 60
       CodeUri: Functions/SpeedAggregations/
       Runtime: python3.6
-      Role: !GetAtt LambdaExecutionRoleDDB.Arn 
+      Role: !GetAtt LambdaExecutionRoleDDBKinesis.Arn 
       Environment:
         Variables:
           AggDynamoDBTableName: !Ref AggregateTable
