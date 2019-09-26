@@ -56,11 +56,7 @@ if "DAXUrl" in env_vars:
     logging.warn("Using Dynamo with DAX")
     session = botocore.session.get_session()
     dax = amazondax.AmazonDaxClient(
-        session,
-        region_name="us-east-1",
-        endpoints=[
-            "dan-test-cluster.sdpavt.clustercfg.dax.use1.cache.amazonaws.com:8111"
-        ],
+        session, region_name="us-east-1", endpoints=[env_vars["DAXUrl"]]
     )
     dynamo_client = dax
 else:
