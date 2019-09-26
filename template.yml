@@ -329,6 +329,6 @@ Outputs:
   CalculateTripsRecordExport:
     # Used by the following:
     # RestAPI: getVehicleTrips
-    Value: !Ref CalculateTrips
+    Value: !GetAtt CalculateTrips.Arn
     Export:
       Name: !Sub "${ProjectId}-CalculateTrips-${Stage}"
