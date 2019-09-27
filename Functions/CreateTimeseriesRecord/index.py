@@ -1,5 +1,5 @@
-from base64 import b64decode
-from boto3.dynamodb.conditions import Key, Attr
+from base64 import b64encode, b64decode
+from boto3.dynamodb.conditions import Key, Attr, AttributeNotExists
 from pprint import pprint, pformat
 import dynamo_helper
 import amazondax
@@ -17,6 +17,9 @@ import time
 import uuid
 from pvapps_odm.Schema.models import SpanModel
 from pvapps_odm.session import dynamo_session
+from pvapps_odm.ddbcon import dynamo_dbcon
+from pvapps_odm.Schema.models import SpanModel
+from pvapps_odm.ddbcon import Connection
 
 sess = dynamo_session(SpanModel)
 
@@ -41,8 +44,8 @@ envVarsList = ["SpanDynamoDBTableName", "DAXUrl", "OutputKinesisStreamName"]
 for var in envVarsList:
     if var in os.environ.keys():
         env_vars[var] = os.environ[var]
-env_vars["SpanDynamoDBTableName"] = SpanModel.Meta.table_name
-logging.info("Environment variables are : {}".format(env_vars))
+env_vars['SpanDynamoDBTableName'] = SpanModel.Meta.table_name
+logging.info('Environment variables are : {}'.format(env_vars))
 ######################################################
 ##                                                  ##
 ##      Database Connection Initialisation          ##
@@ -52,11 +55,20 @@ boto3.resource("dynamodb", region_name="us-east-1")
 deserializer = boto3.dynamodb.types.TypeDeserializer()
 serializer = boto3.dynamodb.types.TypeSerializer()
 
+from pvapps_odm.ddbcon import dynamo_dbcon
+ddb = dynamo_dbcon(SpanModel, conn=Connection())
+ddb.connect()
+
+
 if "DAXUrl" in env_vars:
     logging.warn("Using Dynamo with DAX")
     session = botocore.session.get_session()
     dax = amazondax.AmazonDaxClient(
-        session, region_name="us-east-1", endpoints=[env_vars["DAXUrl"]]
+        session,
+        region_name="us-east-1",
+        endpoints=[
+            env_vars['DAXUrl']
+        ],
     )
     dynamo_client = dax
 else:
@@ -84,7 +96,30 @@ def _grouper(iterable, n=25):
         if not chunk:
             return
         yield chunk
+        
+    
 
+def get_spans_for_devices_from_DAX_batch_usingODM(device_ids):
+    """
+    Gets the spans for list of deviceIds from DynamoDB DAX
+    """
+    logging.info('Getting Spans data for specific device from DAX using ODM')
+    only_device_ids = [x['deviceId'] for x in device_ids]
+    response = ddb.batch_get(only_device_ids)
+    logging.debug("Response from request on DAX using ODM : {}".format(response))
+    
+    # extract the attributes from the object
+    response = [x.attribute_values for x in response]
+    logging.info("Response attributes from request on DAX using ODM : {}".format(response))
+    
+    for x in response:
+        x["spans"] = json.loads(x["spans"])
+        x["spans"] = format_spans(x["spans"])
+        x["spans"] = sort_data_by_date(x["spans"], "end_time")
+    
+
+    logging.info('Getting Spans data for specific device from DAX using ODM...Done')
+    return response
 
 def get_spans_for_devices_from_DAX_batch(device_ids):
     """
@@ -170,6 +205,8 @@ def format_data_pts_in_rec(
 def sort_data_by_date(data_list, attribute_to_sort, reverse=False):
     """
     Sorts array of dicts by attribute provided, given that the attribute is formatted as datetime
+    
+    TODO: Format as epoch
     """
 
     data_sorted = sorted(
@@ -526,8 +563,7 @@ def update_modified_device_spans_in_dynamo(device_spans_dict):
         )
 
     logging.info("updating modified device spans in dynamo...Done")
-
-
+    
 def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
     logging.info("updating modified device spans in dynamo using ODM")
 
@@ -543,23 +579,23 @@ def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
             sp["end_time"] = str(sp["end_time"])
 
         m_dev["spans"] = json.dumps(m_dev["spans"])
-
+        
     pprint(modified_devices_span_dict)
     logging.info(
         "Converting to json modified device spans : {}".format(
             modified_devices_span_dict
         )
     )
-
-    spans_dict_as_OMD_spanmodel = []
+    
+    spans_dict_as_OMD_spanmodel  = []
     for x in modified_devices_span_dict:
-        data_for_ODM = {"deviceId": x["deviceId"], "spans": x["spans"]}
+        data_for_ODM = {'deviceId' : x['deviceId'], 'spans' : x['spans']}
         spans_dict_as_OMD_spanmodel.append(SpanModel(**data_for_ODM))
     pprint(spans_dict_as_OMD_spanmodel)
-
+    
     sess.add_items(spans_dict_as_OMD_spanmodel)
     sess.commit_items()
-
+    
     logging.info("updating modified device spans in dynamo using ODM...Done")
 
 
@@ -583,8 +619,7 @@ def send_tagged_data_to_kinesis(tagged_data):
     for c in chunks:
         response = kinesis_client.put_records(
             # Records=c, StreamName="dan-span-output"
-            Records=c,
-            StreamName=env_vars["OutputKinesisStreamName"],
+            Records=c, StreamName=env_vars['OutputKinesisStreamName']
         )
         logging.info(
             "Response from Outputing to Kinesis Stream : {}".format(response)
@@ -628,7 +663,8 @@ def handler(event, context):
     ########################################
     # get spans for these unique deviceIds #
     ########################################
-    device_spans_dict = get_spans_for_devices_from_DAX_batch(unique_deviceIds)
+    device_spans_dict = get_spans_for_devices_from_DAX_batch_usingODM(unique_deviceIds)
+    print(device_spans_dict)
 
     ################
     # Tagged data ##
