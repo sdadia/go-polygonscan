@@ -227,7 +227,7 @@ def get_span_data_from_dynamo_dax(deviceId):
     )
 
     if not hasattr(response, "Item"):
-        logging.warn("No Span Data exist for deviceId : {}".format(deviceId))
+        logging.warn("No Span Records exist for deviceId : {}".format(deviceId))
         return []
     else:
         deserialized_data = dynamo_helper.deserializer_from_ddb(
