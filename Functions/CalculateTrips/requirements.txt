@@ -1,4 +1,3 @@
 jsonschema
 pandas
 numpy
-boto3
