@@ -226,7 +226,7 @@ def get_span_data_from_dynamo_dax(deviceId):
         )
     )
 
-    if hasattr(response, "Item") is False:
+    if not 'Item' in response.keys():
         logging.warn("No Span Records exist for deviceId : {}".format(deviceId))
         return []
     else:
@@ -234,7 +234,7 @@ def get_span_data_from_dynamo_dax(deviceId):
             response["Item"], deserializer
         )
 
-        if hasattr(deserialized_data, "spans"):
+        if 'spans' in deserialized_data.keys():
             return json.loads(deserialized_data["spans"])
         else:
             logging.warn("No Span Data exists for deviceId : {}".format(deviceId))
