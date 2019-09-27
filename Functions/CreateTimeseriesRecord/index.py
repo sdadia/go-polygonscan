@@ -593,8 +593,11 @@ def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
         spans_dict_as_OMD_spanmodel.append(SpanModel(**data_for_ODM))
     pprint(spans_dict_as_OMD_spanmodel)
     
-    sess.add_items(spans_dict_as_OMD_spanmodel)
-    sess.commit_items()
+    ddb.session.add_items(spans_dict_as_OMD_spanmodel)
+    ddb.session.commit_items()
+
+    # sess.add_items(spans_dict_as_OMD_spanmodel)
+    # sess.commit_items()
     
     logging.info("updating modified device spans in dynamo using ODM...Done")
 
