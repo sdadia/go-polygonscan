@@ -306,7 +306,7 @@ def aggregate_speed_for_trip(spanIds):
     speed_data = get_speed_data_from_dynamo(spanIds)
 
     if len(speed_data) == 0:
-        return {"avg_speed": None}
+        return {"avg_speed": -1}
     else:
         df = pd.DataFrame(speed_data)
         df["speed_mul_count"] = df["speed"] * df["count"]
