@@ -53,16 +53,10 @@ Resources:
         - 
           AttributeName: deviceId
           AttributeType: S
-        - 
-          AttributeName: spanId
-          AttributeType: S
       KeySchema:
         -
           AttributeName: deviceId
           KeyType: HASH
-        -
-          AttributeName: spanId
-          KeyType: RANGE
       ProvisionedThroughput:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
@@ -177,6 +171,7 @@ Resources:
         Variables:
           SpanTable: !Ref SpanTable
           TimeseriesTable: !Ref TimeseriesTable
+          AggregateTable: !Ref AggregateTable
 
   #
   # Invoked via Kinesis Stream

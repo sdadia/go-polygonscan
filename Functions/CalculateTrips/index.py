@@ -32,7 +32,7 @@ logging.basicConfig(
 ##                                                  ##
 ######################################################
 env_vars = {}
-envVarsList = ["SpanDynamoDBTableName", "AggDynamoDBTableName", "DAXUrl"]
+envVarsList = ["SpanTable", "AggregateTable", "DAXUrl"]
 
 for var in envVarsList:
     if var in os.environ.keys():
@@ -47,7 +47,7 @@ logging.info(env_vars)
 dynamodb_resource = boto3.resource("dynamodb")
 serializer = boto3.dynamodb.types.TypeSerializer()
 deserializer = boto3.dynamodb.types.TypeDeserializer()
-metric_table = dynamodb_resource.Table(env_vars["AggDynamoDBTableName"])
+metric_table = dynamodb_resource.Table(env_vars["AggregateTable"])
 
 # enable dax
 if "DAXUrl" in env_vars:
@@ -214,7 +214,7 @@ def get_span_data_from_dynamo_dax(deviceId):
     )
 
     response = dynamo_dax_client.get_item(
-        TableName=str(env_vars["SpanDynamoDBTableName"]),
+        TableName=str(env_vars["SpanTable"]),
         Key={"deviceId": {"S": str(deviceId)}},
     )
 
