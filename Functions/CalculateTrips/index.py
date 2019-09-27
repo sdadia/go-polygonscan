@@ -226,7 +226,7 @@ def get_span_data_from_dynamo_dax(deviceId):
         )
     )
 
-    if not hasattr(response, "Item"):
+    if hasattr(response, "Item") is False:
         logging.warn("No Span Records exist for deviceId : {}".format(deviceId))
         return []
     else:
