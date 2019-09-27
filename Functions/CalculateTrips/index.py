@@ -226,15 +226,19 @@ def get_span_data_from_dynamo_dax(deviceId):
         )
     )
 
-    if response == {}:
-        hasattr(response, "Item")
+    if not hasattr(response, "Item"):
         logging.warn("No Span Data exist for deviceId : {}".format(deviceId))
         return []
     else:
         deserialized_data = dynamo_helper.deserializer_from_ddb(
             response["Item"], deserializer
         )
-        return json.loads(deserialized_data["spans"])
+
+        if hasattr(deserialized_data, "spans"):
+            return json.loads(deserialized_data["spans"])
+        else:
+            logging.warn("No Span Data exists for deviceId : {}".format(deviceId))
+            return []
 
 
 def preprocess_list_of_spans(list_of_spans_dict):
@@ -278,7 +282,7 @@ def get_speed_data_from_dynamo(spanIds):
     for sp in spanIds:
         logging.info("Getting metric Data from DynaomoDB for spanId : {}".format(sp))
         response = metric_table.query(
-            KeyConditionExpression=Key("spanId").eq(str(sp + "_speed"))
+            KeyConditionExpression=Key("spanId_MetricType").eq(str(sp + "_speed"))
         )
 
         logging.info(
