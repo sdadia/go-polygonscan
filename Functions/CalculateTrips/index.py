@@ -342,7 +342,7 @@ def handler(event, context):
 
     # # if no spans are returned, then the trips does not exist
     if len(span_data) == 0:
-        trips = {"trips": []}
+        trips = {}
     else:  # else find the trips
         # calculate trips
         print("Using pandas")
