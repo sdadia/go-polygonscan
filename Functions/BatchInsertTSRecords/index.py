@@ -8,8 +8,15 @@ import boto3
 import itertools
 import datetime
 from pvapps_odm.Schema.models import TSModelB
-from pvapps_odm.session import dynamo_session
-sess = dynamo_session(TSModelB)
+# from pvapps_odm.session import dynamo_session
+from pvapps_odm.ddbcon import dynamo_dbcon
+from pvapps_odm.Schema.models import SpanModel
+from pvapps_odm.ddbcon import Connection
+
+ddb = dynamo_dbcon(TSModelB, conn=Connection())
+ddb.connect()
+
+# sess = dynamo_session(TSModelB)
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -71,15 +78,22 @@ def put_data_into_TS_dynamo_modelB(data):
             'value' : str(d['longitude'])
         }
         data_as_ODM_model.append(TSModelB(**d2))
+        
+    
+    ddb.session.add_items(data_as_ODM_model)
+    ddb.session.commit_items()
 
-        if len(data_as_ODM_model) % 25 == 0:
-            print('commiting items')
-            sess.add_items(data_as_ODM_model)
-            sess.commit_items()
-            data_as_ODM_model = []
+    #     if len(data_as_ODM_model) % 25 == 0:
+    #         print('commiting items')
+    #         sess.add_items(data_as_ODM_model)
+    #         sess.commit_items()
+    #         data_as_ODM_model = []
+    # import pprint; pprint.pprint(data_as_ODM_model)
 
-    sess.add_items(data_as_ODM_model)
-    sess.commit_items()
+    # # sess.add_items(data_as_ODM_model)
+    # # sess.commit_items()
+    # ddb.session.add_items(data_as_ODM_model)
+    # ddb.session.commit_items()
 
 
 def lambda_handler(event, context):
