@@ -33,7 +33,7 @@ phases:
       - cd ..
       # Build Service Template for usage in deployment
       - sam build --debug
-      - sam package --template-file template.yml --s3-bucket $S3_BUCKET --output-template trip-calculation.yml --debug
+      - sam package --s3-bucket $S3_BUCKET --output-template trip-calculation.yml --debug
       
 artifacts:
   secondary-artifacts:
