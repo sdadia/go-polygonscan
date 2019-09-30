@@ -144,14 +144,15 @@ Resources:
           SpanTable: !Ref SpanTable
           TimeseriesTable: !Ref TimeseriesTable
       # Input Event Pending Kinesis Stream Creation For Decompressed/Enriched Data 
-      # Events:
-      #   KinesisSource:
-      #     Type: Kinesis
-      #     Properties:
-      #       Stream: arn:aws:kinesis:us-east-1:123456789012:stream/my-stream
-      #       StartingPosition: TRIM_HORIZON
-      #       BatchSize: 100
-      #       Enabled: false
+      Events:
+        KinesisSource:
+          Type: Kinesis
+          Properties:
+            Stream: 
+              Fn::ImportValue: !Sub "${ProjectId}-ProcessedTelematicsStream-${Stage}"
+            StartingPosition: TRIM_HORIZON
+            BatchSize: 100
+            Enabled: true
 
   #
   # Invoked via external Lambda function
