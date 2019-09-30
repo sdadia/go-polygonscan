@@ -20,6 +20,7 @@ root = logging.getLogger()
 if root.handlers:
     for handler in root.handlers:
         root.removeHandler(handler)
+
 logging.basicConfig(
     level=logging.ERROR,
     format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
@@ -543,7 +544,7 @@ def send_tagged_data_to_kinesis(tagged_data):
     chunks = _grouper(tagged_data_as_kinesis_record_format, 25)
     for c in chunks:
         response = kinesis_client.put_records(
-            Records=c, StreamName="dan-span-output"
+            Records=c, StreamName=os.getenv('TaggedDataStream','NA')
         )
         logging.info(
             "Response from Outputing to Kinesis Stream : {}".format(response)
