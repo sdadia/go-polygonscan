@@ -143,6 +143,7 @@ Resources:
         Variables:
           SpanTable: !Ref SpanTable
           TimeseriesTable: !Ref TimeseriesTable
+          TaggedDataStream: !Ref TaggedDataStream
       # Input Event Pending Kinesis Stream Creation For Decompressed/Enriched Data 
       Events:
         KinesisSource:
