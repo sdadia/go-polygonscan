@@ -65,7 +65,7 @@ else:
 kinesis_client = boto3.client("kinesis")
 
 
-DATETIME_FOMRAT = "%Y-%m-%d %H:%M:%S"
+DATETIME_FOMRAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def generate_uuid():
