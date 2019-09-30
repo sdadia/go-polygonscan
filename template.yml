@@ -138,7 +138,7 @@ Resources:
       Timeout: 60
       CodeUri: Functions/CreateTimeseriesRecord/
       Runtime: python3.6
-      Role: !GetAtt LambdaExecutionRoleDDB.Arn 
+      Role: !GetAtt LambdaExecutionRoleDDBKinesis.Arn 
       Environment:
         Variables:
           SpanTable: !Ref SpanTable
@@ -202,8 +202,7 @@ Resources:
 
   #
   # Invoked via Kinesis Stream
-  # Calculates average speed value for a device in 1 minute aggregations
-  # Inserts calculated records into aggregation DDB table
+  # Inserts records into TS data store (DDB) in batches
   #
   InsertTSRecords:
     Type: AWS::Serverless::Function
@@ -311,6 +310,7 @@ Resources:
                   - 'kinesis:ListStreams'
                 Resource: 
                   - !GetAtt TaggedDataStream.Arn
+                  - Fn::ImportValue: !Sub "${ProjectId}-ProcessedTelematicsStream-${Stage}"
                 Effect: Allow
       AssumeRolePolicyDocument:
         Statement:
