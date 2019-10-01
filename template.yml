@@ -29,6 +29,11 @@ Parameters:
     Description: Name of the current service
     Default: trip-calculation1
 
+  ProcessedTelematicsStream:
+    Type: String
+    Description: ARN of telematics stream to process
+    
+
 Resources:
 
   # ODM Layer for use with trip calculation functions.
@@ -149,8 +154,7 @@ Resources:
         KinesisSource:
           Type: Kinesis
           Properties:
-            Stream: 
-              Fn::ImportValue: !Sub "${ProjectId}-ProcessedTelematicsStream-${Stage}"
+            Stream: !Ref ProcessedTelematicsStream
             StartingPosition: TRIM_HORIZON
             BatchSize: 100
             Enabled: true
