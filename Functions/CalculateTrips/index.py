@@ -34,7 +34,7 @@ logging.basicConfig(
 ##                                                  ##
 ######################################################
 env_vars = {}
-envVarsList = ["SpanDynamoDBTableName", "AggDynamoDBTableName", "DAXUrl"]
+envVarsList = ["SpanTable", "AggregateTable", "DAXUrl"]
 
 for var in envVarsList:
     if var in os.environ.keys():
@@ -54,7 +54,7 @@ logging.info("Environment variables are : {}".format(env_vars))
 dynamodb_resource = boto3.resource("dynamodb")
 serializer = boto3.dynamodb.types.TypeSerializer()
 deserializer = boto3.dynamodb.types.TypeDeserializer()
-metric_table = dynamodb_resource.Table(env_vars["AggDynamoDBTableName"])
+metric_table = dynamodb_resource.Table(env_vars["AggregateTable"])
 
 # enable dax
 if "DAXUrl" in env_vars:
@@ -216,7 +216,7 @@ def get_span_data_from_dynamo_dax(deviceId):
     )
 
     response = dynamo_dax_client.get_item(
-        TableName=str(env_vars["SpanDynamoDBTableName"]),
+        TableName=str(env_vars["SpanTable"]),
         Key={"deviceId": {"S": str(deviceId)}},
     )
 
@@ -228,15 +228,19 @@ def get_span_data_from_dynamo_dax(deviceId):
         )
     )
 
-    if response == {}:
-        hasattr(response, "Item")
-        logging.warn("No Span Data exist for deviceId : {}".format(deviceId))
+    if not 'Item' in response.keys():
+        logging.warn("No Span Records exist for deviceId : {}".format(deviceId))
         return []
     else:
         deserialized_data = dynamo_helper.deserializer_from_ddb(
             response["Item"], deserializer
         )
-        return json.loads(deserialized_data["spans"])
+
+        if 'spans' in deserialized_data.keys():
+            return json.loads(deserialized_data["spans"])
+        else:
+            logging.warn("No Span Data exists for deviceId : {}".format(deviceId))
+            return []
 
 
 def preprocess_list_of_spans(list_of_spans_dict):
@@ -282,9 +286,7 @@ def get_speed_data_from_dynamo(spanIds):
             "Getting metric Data from DynaomoDB for spanId : {}".format(sp)
         )
         response = metric_table.query(
-            KeyConditionExpression=Key("spanId_metricname").eq(
-                str(sp + "_speed")
-            )
+            KeyConditionExpression=Key("spanId_MetricType").eq(str(sp + "_speed"))
         )
 
         logging.info(
@@ -312,7 +314,7 @@ def aggregate_speed_for_trip(spanIds):
     speed_data = get_speed_data_from_dynamo(spanIds)
 
     if len(speed_data) == 0:
-        return {"avg_speed": None}
+        return {"avg_speed": -1}
     else:
         df = pd.DataFrame(speed_data)
         df["speed_mul_count"] = df["speed"] * df["count"]
@@ -348,7 +350,7 @@ def handler(event, context):
 
     # # if no spans are returned, then the trips does not exist
     if len(span_data) == 0:
-        trips = {"trips": []}
+        trips = {}
     else:  # else find the trips
         # calculate trips
         print("Using pandas")
@@ -368,4 +370,4 @@ def handler(event, context):
     trips = {"trips": list(trips.values())}
     pprint(trips)
 
-    return json.dumps(trips)
+    return trips
