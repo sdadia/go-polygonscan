@@ -15,13 +15,15 @@ import os
 import pandas as pd
 import time
 
+from pvapps_odm.Schema.models import SpanModel, AggregationModel
+
 
 root = logging.getLogger()
 if root.handlers:
     for handler2 in root.handlers:
         root.removeHandler(handler2)
 logging.basicConfig(
-    format="%(asctime)s %(levelname)-8s %(message)s",
+    format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
     level=logging.INFO,
     datefmt="%Y-%m-%d %H:%M:%S.%s",
 )
@@ -37,7 +39,12 @@ envVarsList = ["SpanTable", "AggregateTable", "DAXUrl"]
 for var in envVarsList:
     if var in os.environ.keys():
         env_vars[var] = os.environ[var]
-logging.info(env_vars)
+
+env_vars["SpanDynamoDBTableName"] = str(SpanModel.Meta.table_name)
+# SpanModel.Meta.table_name = env_vars['SpanDynamoDBTableName'] +
+env_vars["AggDynamoDBTableName"] = str(AggregationModel.Meta.table_name)
+print(SpanModel.Meta.table_name)
+logging.info("Environment variables are : {}".format(env_vars))
 
 ######################################################
 ##                                                  ##
@@ -51,25 +58,20 @@ metric_table = dynamodb_resource.Table(env_vars["AggregateTable"])
 
 # enable dax
 if "DAXUrl" in env_vars:
-
+    logging.warn("Using DAX")
     session = botocore.session.get_session()
     dax = amazondax.AmazonDaxClient(
-        session,
-        region_name="us-east-1",
-        endpoints=[
-            env_vars['DAXUrl']
-        ],
+        session, region_name="us-east-1", endpoints=[env_vars["DAXUrl"]]
     )
     dynamo_dax_client = dax
 else:
+    logging.warn("Not using DAX")
     dynamo_dax_client = boto3.client("dynamodb")
-
-# dynamo_dax_client = boto3.client("dynamodb")
 
 
 ######################################################
 ##                                                  ##
-##      Default incoming_event_schema of incoming request          ##
+## Default incoming_event_schema of incoming request##
 ##                                                  ##
 ######################################################
 incoming_event_schema = {
@@ -156,27 +158,27 @@ def get_trips_pandas(
     ]
 
     df.sort_values(by="start_time_", ascending=True, inplace=True)
-    print(df)
+    # print(df)
 
     # shift time up
     df["start_time_next_trip"] = df["start_time_"].shift(-1)
-    print(df)
+    # print(df)
 
     # differente between start time of next trip and end time of current trip
     df["diff"] = (df["start_time_next_trip"] - df["end_time_"]).shift(1)
-    print(df)
+    # print(df)
 
     # convert the differentce in secpnds
     df["diff_in_seconds"] = df["diff"].fillna(
         pd.Timedelta(seconds=0)
     ) / np.timedelta64(1, "s")
-    print(df)
+    # print(df)
 
     # 15 minute rule - and binarize the breaks
     df["new_trip_start_indicator"] = np.where(
         df["diff_in_seconds"] >= time_diff_between_spans * 60, 1, 0
     )
-    print(df)
+    # print(df)
 
     # create the trip_number for each span
     trip_number = 1
@@ -186,7 +188,7 @@ def get_trips_pandas(
             trip_number += 1
         trip_id_indicator.append(trip_number)
     df["trip_id_indicator"] = trip_id_indicator
-    print(df)
+    # print(df)
 
     df["start_time_"] = df["start_time_"].astype(str)
     df["end_time_"] = df["end_time_"].astype(str)
@@ -202,7 +204,7 @@ def get_trips_pandas(
         .rename(columns={"end_time_": "end_time", "start_time_": "start_time"})
         .to_dict(orient="index")
     )
-    pprint(final_result_set)
+    # pprint(final_result_set)
 
     logging.info("Finding trips...Done")
     return final_result_set
@@ -259,7 +261,7 @@ def preprocess_list_of_spans(list_of_spans_dict):
     data = list_of_spans_dict
     logging.info("Formatting and sorting")
     for d in list_of_spans_dict:
-        print(d)
+        # print(d)
         list_of_spans_dict[d]["start_time"] = datetime.datetime.strptime(
             list_of_spans_dict[d]["start_time"], DATETIME_FORMAT
         ).timestamp()
@@ -280,7 +282,9 @@ def get_speed_data_from_dynamo(spanIds):
     """
     all_data = []
     for sp in spanIds:
-        logging.info("Getting metric Data from DynaomoDB for spanId : {}".format(sp))
+        logging.info(
+            "Getting metric Data from DynaomoDB for spanId : {}".format(sp)
+        )
         response = metric_table.query(
             KeyConditionExpression=Key("spanId_MetricType").eq(str(sp + "_speed"))
         )
@@ -293,10 +297,14 @@ def get_speed_data_from_dynamo(spanIds):
         logging.info("Getting Data from DynaomoDB...Done")
         all_data.extend(response["Items"])
 
+    logging.info("Speed data from aggregate table : {}".format(all_data))
     if len(all_data) == 0:
         logging.warn(
             "No speed metrics found for given span Ids : {}".format(spanIds)
         )
+    for r in all_data:
+        r["spanId"] = r.pop("spanId_metricname")
+        r["speed"] = r.pop("value")
 
     return all_data
 
@@ -360,6 +368,6 @@ def handler(event, context):
             trips[trip_id]["metrics"] = aggregate_speed_for_trip(spanss)
 
     trips = {"trips": list(trips.values())}
-    print(trips)
+    pprint(trips)
 
     return trips

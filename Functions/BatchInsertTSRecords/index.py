@@ -7,56 +7,25 @@ import logging
 import boto3
 import itertools
 import datetime
+from pvapps_odm.Schema.models import TSModelB
+# from pvapps_odm.session import dynamo_session
+from pvapps_odm.ddbcon import dynamo_dbcon
+from pvapps_odm.Schema.models import SpanModel
+from pvapps_odm.ddbcon import Connection
 
-logging.basicConfig(
-    level=logging.INFO)
+ddb = dynamo_dbcon(TSModelB, conn=Connection())
+ddb.connect()
+
+# sess = dynamo_session(TSModelB)
+
+logging.basicConfig(level=logging.ERROR)
 
 dynamo_put_client = boto3.client('dynamodb')
 dynamodb_resource = boto3.resource("dynamodb")
 serializer = boto3.dynamodb.types.TypeSerializer()
 
-def convert_to_putItem_format(item):
-    return {
-        "PutRequest": {"Item": dynamo_helper.serialize_to_ddb(item, serializer)}
-    }
+DATETIME_FOMRAT = "%Y-%m-%d %H:%M:%S"
 
-def convert_to_dynamo_put_item_format(data):
-    """
-    Converts the aggregate values to DynamoDB's client PutItemRequest format for
-    sending data in batches.
-    """
-
-    logging.info("Converting the data to dynamo Put Item Type")
-
-    # convert to put item_type
-    TS_values_as_put_item = list(
-        map(convert_to_putItem_format, data)
-    )
-    logging.debug(
-        "PutItem Formatted Data : {}".format((TS_values_as_put_item))
-    )
-    logging.info("Converting the data to dynamo Put Item Type...Done")
-
-    return TS_values_as_put_item
-
-
-def batch_write_tagged_data_to_DynamoDB(tagged_data, 
-                TSDynamo_tablename="pvcam-test-TripCalculation-TimeseriesTable-Daily-2019-09-06"):
-                    
-    TS_values_as_put_item = list(
-        map(convert_to_putItem_format, tagged_data)
-    )
-    print(TS_values_as_put_item)
-    
-    dynamo_putItems = convert_to_dynamo_put_item_format(aggregate_values)
-
-    for record  in tagged_data:
-        s=time.time()
-        response = dynamo_put_client.batch_write_item(RequestItems={TSDynamo_tablename: record})
-        e = time.time()
-        print("Time taken for batch write : {}".format(e-s))
-        
-    
 
 def extract_data_from_kinesis(event):
     logging.info("Extracting data from Kinesis")
@@ -83,24 +52,54 @@ def chunks(l, n=25):
         yield l[i : i + n]
 
 
+def put_data_into_TS_dynamo_modelB(data):
+    data_as_ODM_model = []
+    for d in data:
+        d2 = {
+            'did_date_measure' : d['deviceId'] + "_" + d['timestamp'].split()[0] + "_" + "speed",
+            'tstime' : time.mktime(datetime.datetime.strptime(d['timestamp'], DATETIME_FOMRAT).timetuple()),
+            'span_id' : d["spanId"],
+            'value' : str(d['speed'])
+        }
+        data_as_ODM_model.append(TSModelB(**d2))
+
+        d2 = {
+            'did_date_measure' : d['deviceId'] + "_" + d['timestamp'].split()[0] + "_" + "latitude",
+            'tstime' : time.mktime(datetime.datetime.strptime(d['timestamp'], DATETIME_FOMRAT).timetuple()),
+            'span_id' : d["spanId"],
+            'value' : str(d['latitude'])
+        }
+        data_as_ODM_model.append(TSModelB(**d2))
+
+        d2 = {
+            'did_date_measure' : d['deviceId'] + "_" + d['timestamp'].split()[0] + "_" + "longitude",
+            'tstime' : time.mktime(datetime.datetime.strptime(d['timestamp'], DATETIME_FOMRAT).timetuple()),
+            'span_id' : d["spanId"],
+            'value' : str(d['longitude'])
+        }
+        data_as_ODM_model.append(TSModelB(**d2))
+        
+    
+    ddb.session.add_items(data_as_ODM_model)
+    ddb.session.commit_items()
+
+    #     if len(data_as_ODM_model) % 25 == 0:
+    #         print('commiting items')
+    #         sess.add_items(data_as_ODM_model)
+    #         sess.commit_items()
+    #         data_as_ODM_model = []
+    # import pprint; pprint.pprint(data_as_ODM_model)
+
+    # # sess.add_items(data_as_ODM_model)
+    # # sess.commit_items()
+    # ddb.session.add_items(data_as_ODM_model)
+    # ddb.session.commit_items()
 
 
 def lambda_handler(event, context):
-    data = extract_data_from_kinesis(event)
-    dynamo_putItems = convert_to_dynamo_put_item_format(data)
-    print(dynamo_putItems)
-    
-    for batch in chunks(dynamo_putItems, 25):
-        response = dynamo_put_client.batch_write_item(
-            RequestItems={"pvcam-test-TripCalculation-TimeseriesTable-Daily-2019-09-06": batch}
-        )
-        logging.info(
-            "Response from updating metric in batch : {}".format(
-                response["ResponseMetadata"]["HTTPStatusCode"]
-            )
-        )
 
-    
-    
-    
+    data = extract_data_from_kinesis(event)
+
+    put_data_into_TS_dynamo_modelB(data)
+
     return 'Done adding records to daynamo using ODM'
