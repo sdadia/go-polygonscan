@@ -315,7 +315,9 @@ Resources:
                   - 'kinesis:ListStreams'
                 Resource: 
                   - !GetAtt TaggedDataStream.Arn
-                  - Fn::ImportValue: !Sub "${ProjectId}-ProcessedTelematicsStream-${Stage}"
+                  - !Sub 
+                    - "${ProjectId}-ProcessedTelematicsStream-${Stage}"
+                    - { ProjectId: !Ref ProjectId,Stage: !Ref Stage }
                 Effect: Allow
       AssumeRolePolicyDocument:
         Statement:
