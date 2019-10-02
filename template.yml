@@ -32,6 +32,8 @@ Parameters:
   ProcessedTelematicsStream:
     Type: String
     Description: ARN of telematics stream to process
+  
+  
     
 
 Resources:
@@ -315,9 +317,7 @@ Resources:
                   - 'kinesis:ListStreams'
                 Resource: 
                   - !GetAtt TaggedDataStream.Arn
-                  - !Sub 
-                    - "${ProjectId}-ProcessedTelematicsStream-${Stage}"
-                    - { ProjectId: !Ref ProjectId,Stage: !Ref Stage }
+                  - !Ref ProcessedTelematicsStream
                 Effect: Allow
       AssumeRolePolicyDocument:
         Statement:
