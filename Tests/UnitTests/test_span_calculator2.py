@@ -702,12 +702,12 @@ class TestProcessSpans(unittest.TestCase):
             ],
         }
 
-        array_start_time = "2019-05-22T10:43:08.154000Z"
+        array_start_time = "2019-05-22T10:47:08.154000Z"
         dt_array_start_time = datetime.datetime.strptime(
             array_start_time, DATETIME_FORMAT
         )
 
-        array_end_time = "2019-05-22T10:55:15.154000Z"
+        array_end_time = "2019-05-22T10:52:15.154000Z"
         dt_array_end_time = datetime.datetime.strptime(
             array_end_time, DATETIME_FORMAT
         )
@@ -717,7 +717,7 @@ class TestProcessSpans(unittest.TestCase):
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
         )
-        # print(all_spans, spanId_for_tagging, modified)
+        print(all_spans, spanId_for_tagging, modified)
 
         self.assertEqual(modified, True)
         self.assertEqual(
@@ -835,7 +835,7 @@ class TestProcessSpans(unittest.TestCase):
         self.assertEqual(all_spans[-1]["end_time"], array_end_time)
         self.assertEqual(all_spans[-1]["start_time"], array_start_time)
 
-    @unittest.SkipTest
+    # @unittest.SkipTest
     def test_process_spans_left_ovelap(self):
         """
         Span        x----------------------x
@@ -882,7 +882,7 @@ class TestProcessSpans(unittest.TestCase):
         )
         print(all_spans, spanId_for_tagging, modified)
 
-        # self.assertEqual(modified, True)
+        self.assertEqual(modified, True)
         # self.assertEqual(
         # spanId_for_tagging, "2"
         # )

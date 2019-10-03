@@ -29,7 +29,7 @@ if root.handlers:
     for handler in root.handlers:
         root.removeHandler(handler)
 logging.basicConfig(
-    level=logging.ERROR,
+    level=logging.INFO,
     format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -403,7 +403,8 @@ def find_spans(start_time, end_time, all_spans):
 
                     # Update Start Time
                     # logger.info('Case 2.2.1: MET')
-                    return (idx, span["spanId"], ("start_time", str_start_time))
+                    # print(idx, span["spanId"], [("start_time", str_start_time))
+                    return (idx, span["spanId"], [("start_time", str_start_time)])
 
                 else:
                     # Case 2.2.2 - Covering:
@@ -445,13 +446,21 @@ def create_span(start_time, end_time):
 
 
 def update_span(spans, span_index, timestamps):
-
+    print("****")
+    print(spans, span_index, timestamps)
+    time
     format2 = "%Y-%m-%dT%H:%M:%SZ"
 
     if span_index is not None:
-
+        print(timestamps)
         for t in timestamps:
+            print(t)
+            print(spans[span_index], spans[span_index][t[0]])
+            print("here")
             spans[span_index][t[0]] = t[1]
+            print("here1")
+            print(spans[span_index])
+    print("****")
 
     return spans
 
@@ -474,7 +483,7 @@ def process_spans(all_spans, array_start_time, array_end_time):
             array_start_time, array_end_time, all_spans
         )
 
-        print(span_index, span_id, attrs_to_update)
+        # print(span_index, span_id, attrs_to_update)
 
         if span_index is None:
             logger.warning("No span Index found, so creating a new span")
