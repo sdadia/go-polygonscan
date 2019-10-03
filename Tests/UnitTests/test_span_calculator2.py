@@ -1,5 +1,5 @@
-import boto3
 import json
+import datetime
 import logging
 import os
 import sys
@@ -13,27 +13,274 @@ sys.path.append(
 import os
 from Functions.CreateTimeseriesRecord.index import (
     handler,
-    get_spans_for_devices_from_DAX_batch,
+    get_all_records_in_event,
+    remove_invalid_trip_data,
 )
 
 logger = logging.getLogger("test_span_calculator2")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 import os
-os.environ['OutputKinesisStreamName'] = 'dan_dax_output'
+import mock
 
+os.environ["OutputKinesisStreamName"] = "dan_dax_output"
 
 
 class TestCreateTimeSeriesRecord(unittest.TestCase):
-    def test_handler(self):
+    @mock.patch(
+        "Functions.CreateTimeseriesRecord.index.get_spans_for_devices_from_DAX_batch_usingODM"
+    )
+    @mock.patch(
+        "Functions.CreateTimeseriesRecord.index.get_all_records_in_event"
+    )
+    def test_handler(
+        self,
+        mock_get_all_records_in_event,
+        mock_get_spans_for_devices_from_DAX_batch_usingODM,
+    ):
+        mock_get_all_records_in_event.return_value = [
+            [
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:05Z",
+                        "alt": "41.00",
+                        "course": "63.60",
+                        "geoid": "55.00",
+                        "lat": "5319.8250N",
+                        "lng": "622.34220W",
+                        "speed": "0.28",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:05.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:06Z",
+                        "alt": "41.00",
+                        "course": "148.87",
+                        "geoid": "55.00",
+                        "lat": "5319.8250N",
+                        "lng": "622.34210W",
+                        "speed": "0.83",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:47:06.154Z",
+                },
+            ]
+        ]
+
+        mock_get_spans_for_devices_from_DAX_batch_usingODM.return_value = [
+            {
+                "spans": [
+                    {
+                        "start_time": datetime.datetime(
+                            2019, 5, 22, 10, 45, 5, 154000
+                        ),
+                        "end_time": datetime.datetime(
+                            2019, 5, 22, 10, 45, 14, 154000
+                        ),
+                        "spanId": "123",
+                    }
+                ],
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+            }
+        ]
         logger.info("Testing handler")
-        with open("./sample_span_calculation_input.json") as f:
-            event = json.load(f)
-        logger.info("Event is : {}".format(event))
-        records = handler(event, None)
+        # with open("./sample_span_calculation_input.json") as f:
+        # event = json.load(f)
+        # logger.debug("Event is : {}".format(event))
+        records = handler({}, None)
         logger.info("Extracted records are :\n {}".format(pformat(records)))
 
         logger.info("Testing handler...Done")
+
+    def test_get_all_records_in_event(self):
+        logging.info("Testing get_all_records_in_event function")
+        with open("./sample_span_calculation_input.json") as f:
+            event = json.load(f)
+        logger.debug("Event is : {}".format(event))
+        all_records = get_all_records_in_event(event)
+
+        logging.debug(
+            "Extracted records are : \n{}".format(pformat(all_records))
+        )
+
+        expected_all_records = [
+            [
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:05Z",
+                        "alt": "41.00",
+                        "course": "63.60",
+                        "geoid": "55.00",
+                        "lat": "5319.8250N",
+                        "lng": "622.34220W",
+                        "speed": "0.28",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:05.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:06Z",
+                        "alt": "41.00",
+                        "course": "148.87",
+                        "geoid": "55.00",
+                        "lat": "5319.8250N",
+                        "lng": "622.34210W",
+                        "speed": "0.83",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:06.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:07Z",
+                        "alt": "41.00",
+                        "course": "137.71",
+                        "geoid": "55.00",
+                        "lat": "5319.8249N",
+                        "lng": "622.34200W",
+                        "speed": "0.52",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:07.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:08Z",
+                        "alt": "41.10",
+                        "course": "289.18",
+                        "geoid": "55.00",
+                        "lat": "5319.8249N",
+                        "lng": "622.34190W",
+                        "speed": "0.69",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:08.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:09Z",
+                        "alt": "41.10",
+                        "course": "250.05",
+                        "geoid": "55.00",
+                        "lat": "5319.8249N",
+                        "lng": "622.34210W",
+                        "speed": "0.76",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:09.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:10Z",
+                        "alt": "41.10",
+                        "course": "288.74",
+                        "geoid": "55.00",
+                        "lat": "5319.8249N",
+                        "lng": "622.34230W",
+                        "speed": "1.06",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:10.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:11Z",
+                        "alt": "41.10",
+                        "course": "324.73",
+                        "geoid": "55.00",
+                        "lat": "5319.8249N",
+                        "lng": "622.34250W",
+                        "speed": "1.13",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:11.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:12Z",
+                        "alt": "41.10",
+                        "course": "335.31",
+                        "geoid": "55.00",
+                        "lat": "5319.8248N",
+                        "lng": "622.34210W",
+                        "speed": "1.37",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:12.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:13Z",
+                        "alt": "41.10",
+                        "course": "326.74",
+                        "geoid": "55.00",
+                        "lat": "5319.8246N",
+                        "lng": "622.34160W",
+                        "speed": "0.98",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:13.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:14Z",
+                        "alt": "41.10",
+                        "course": "326.74",
+                        "geoid": "55.00",
+                        "lat": "5319.8246N",
+                        "lng": "622.34160W",
+                        "speed": "0.98",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:14.154Z",
+                },
+            ]
+        ]
+
+        self.assertEqual(len(all_records), len(expected_all_records))
+        for e1, e2 in zip(expected_all_records[0], all_records[0]):
+            self.assertEqual(e1, e2)
+        logging.info("Testing get_all_records_in_event function...Done")
+
 
 
 def suite():
