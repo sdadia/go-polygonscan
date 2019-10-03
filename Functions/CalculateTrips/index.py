@@ -16,6 +16,8 @@ import pandas as pd
 import time
 
 from pvapps_odm.Schema.models import SpanModel, AggregationModel
+from pvapps_odm.ddbcon import dynamo_dbcon
+from pvapps_odm.ddbcon import Connection
 
 
 root = logging.getLogger()
@@ -56,6 +58,13 @@ serializer = boto3.dynamodb.types.TypeSerializer()
 deserializer = boto3.dynamodb.types.TypeDeserializer()
 metric_table = dynamodb_resource.Table(env_vars["AggDynamoDBTableName"])
 
+ddb_span = dynamo_dbcon(SpanModel, conn=Connection())
+ddb_span.connect()
+
+
+ddb_agg = dynamo_dbcon(AggregationModel, conn=Connection())
+ddb_agg.connect()
+
 # enable dax
 if "DAXUrl" in env_vars:
     logging.warn("Using DAX")
@@ -71,7 +80,7 @@ else:
 
 ######################################################
 ##                                                  ##
-## Default incoming_event_schema of incoming request##
+##      Default incoming_event_schema of incoming request          ##
 ##                                                  ##
 ######################################################
 incoming_event_schema = {
@@ -239,6 +248,24 @@ def get_span_data_from_dynamo_dax(deviceId):
         return json.loads(deserialized_data["spans"])
 
 
+def get_span_data_from_dynamo_dax_using_ODM(deviceId):
+    logging.info(
+        "Getting span data from dynamoDAX for deviceId : {}".format(deviceId)
+    )
+
+    response = ddb_span.batch_get([deviceId])
+
+    logging.info("response from dax : {}".format(response))
+
+    if response == []:
+        # hasattr(response, "Item")
+        logging.warn("No Span Data exist for deviceId : {}".format(deviceId))
+        return []
+    else:
+        return json.loads((response[0].attribute_values)["spans"])
+        # return json.loads(deserialized_data["spans"])
+
+
 def preprocess_list_of_spans(list_of_spans_dict):
     """
     Sorts the list of span which we get from dyamo accoding to the start_time
@@ -308,6 +335,28 @@ def get_speed_data_from_dynamo(spanIds):
 
 
 def aggregate_speed_for_trip(spanIds):
+    print(spanIds)
+
+    all_data = []
+    for sp in spanIds:
+        response = ddb_agg.session.query(sp + "_speed", None)
+        # print(response)
+        all_data.extend(response)
+
+    speed_data = [x.attribute_values for x in all_data]
+    pprint(all_data)
+
+    if len(speed_data) == 0:
+        return {"avg_speed": -1}
+    else:
+        df = pd.DataFrame(speed_data)
+        df["speed_mul_count"] = df["value"] * df["count"]
+        avg_speed = df["speed_mul_count"].sum() / df["count"].sum()
+        avg_speed = float(avg_speed)
+        return {"avg_speed": float(avg_speed)}
+
+
+def aggregate_speed_for_trip2(spanIds):
 
     speed_data = get_speed_data_from_dynamo(spanIds)
 
@@ -322,7 +371,7 @@ def aggregate_speed_for_trip(spanIds):
 
 
 def handler(event, context):
-    print(event)
+    # print(event)
     logging.info("Given API query : \n{}".format(pformat(event)))
 
     logging.info("Parsing event")
@@ -343,12 +392,12 @@ def handler(event, context):
         event["trip_time_diff"] = TRIP_TIME_DIFF
 
     # query device from dynamo and get all the spans
-    span_data = get_span_data_from_dynamo_dax(event["deviceId"])
+    span_data = get_span_data_from_dynamo_dax_using_ODM(event["deviceId"])
     logging.info("returned span data : {}".format(span_data))
 
     # # if no spans are returned, then the trips does not exist
     if len(span_data) == 0:
-        trips = {"trips": []}
+        trips = {}
     else:  # else find the trips
         # calculate trips
         print("Using pandas")
@@ -359,6 +408,9 @@ def handler(event, context):
             event["trip_time_diff"],
         )
 
+        if trips == {}:
+            logging.warning("No Trips found")
+
         for trip_id in trips.keys():
             spanss = trips[trip_id]["spanId"]
 
@@ -366,6 +418,7 @@ def handler(event, context):
             trips[trip_id]["metrics"] = aggregate_speed_for_trip(spanss)
 
     trips = {"trips": list(trips.values())}
+
     pprint(trips)
 
     return json.dumps(trips)

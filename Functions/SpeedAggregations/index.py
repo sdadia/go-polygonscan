@@ -1,34 +1,19 @@
 # regular imports
-from boto3.dynamodb.conditions import Key
-import datetime
-from pandas.io.json import json_normalize
-import boto3
 from base64 import b64decode
-import logging
-from pprint import pprint
+from pprint import pformat
+from pvapps_odm.Schema.models import AggregationModel
+from pvapps_odm.ddbcon import Connection
+from pvapps_odm.ddbcon import dynamo_dbcon
+import boto3
+import datetime
 import json
+import logging
 import os
 import pandas as pd
-from pvapps_odm.Schema.models import AggregationModel
-from pvapps_odm.session import dynamo_session
-
-sess = dynamo_session(AggregationModel)
+import aggregation_lib
 
 
 # custom library imports
-import sys
-
-sys.path.append("../")
-try:
-    from helper_functions import dynamo_helper
-    from aggregation_lib import aggregation_lib
-
-    logging.warning("Running Locally so module imports are different")
-except Exception as e:
-    logging.warning("Running on Lambda")
-    import dynamo_helper
-    import aggregation_lib
-
 ######################################################
 ##                                                  ##
 ##      Logging Information                         ##
@@ -42,7 +27,12 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.StreamHandler()
+    ]
 )
+
+logger = logging.getLogger("speed_log")
 
 ######################################################
 ##                                                  ##
@@ -55,7 +45,7 @@ for var in envVarsList:
     if var in os.environ.keys():
         env_vars[var] = os.environ[var]
 env_vars["AggDynamoDBTableName"] = str(AggregationModel.Meta.table_name)
-logging.info("Environment variables are : {}".format(env_vars))
+logger.info("Environment variables are : {}".format(env_vars))
 print("Environment variables are : {}".format(env_vars))
 
 ######################################################
@@ -63,43 +53,13 @@ print("Environment variables are : {}".format(env_vars))
 ##      Database Connection Initialisation          ##
 ##                                                  ##
 ######################################################
-dynamodb_resource = boto3.resource("dynamodb")
-table = dynamodb_resource.Table(env_vars["AggDynamoDBTableName"])
-dynamo_client = boto3.client("dynamodb")
-serializer = boto3.dynamodb.types.TypeSerializer()
-deserializer = boto3.dynamodb.types.TypeDeserializer()
+ddb = dynamo_dbcon(AggregationModel, conn=Connection())
+ddb.connect()
 
 
-def extract_data_from_record(record, deserializer):
-    """
-    Extracts the SpanID, timestamp converts a DBStream object to a dictionary with the required key and metrics
-
-    Returns
-    -------
-    data = {'Key1': ...,
-            'Key2': ...,
-            'Metric1' : ...,
-            'Metric2' : ....,
-            'Metric3' : ....,
-
-            }
-    """
-    data = {
-        **(
-            dynamo_helper.deserializer_from_ddb(
-                record["dynamodb"]["Keys"], deserializer
-            )
-        ),
-        **(
-            dynamo_helper.deserializer_from_ddb(
-                record["dynamodb"]["NewImage"], deserializer
-            )
-        ),
-    }
-    return data
-
-
-def get_metric_data_from_dynamo_batch(unique_span_timestamps):
+def get_metric_data_from_dynamo_batch_from_ODM_table_read(
+    unique_span_timestamps
+):
     """
     Gets the metric data from dynamo for given spanId. Does a query on the spanID.
 
@@ -109,216 +69,60 @@ def get_metric_data_from_dynamo_batch(unique_span_timestamps):
         The list of dict containing the spanID and granular timestamp for wheihc we are queryung the data
     """
 
-    logging.info("Getting metrics for unique spanId and timestamps")
-
-    # rename the span_id to spanid_metric_name
-    # unique_span_timestamps = [x.update({x['spanId'] : x['spanId'] + "_speed"}) for x in unique_span_timestamps]
-    # logging.info('renamed unique_span_timestamps')
-
-    # serialize the data to send for querying
-    serialized_unique_span_timestamps = [
-        dynamo_helper.serialize_to_ddb(x, serializer)
-        for x in unique_span_timestamps
-    ]
-    logging.info(
-        "Need to get metrics for {} Unqiue span-timestamp".format(
-            (len(serialized_unique_span_timestamps))
-        )
+    logger.info(
+        "Getting metrics for unique spanId and timestamps using ODM read"
     )
-
-    # query data in batches of 100
-    all_low_level_data = []
-    for c in chunks(serialized_unique_span_timestamps, 100):
-
-        response = dynamo_client.batch_get_item(
-            RequestItems={env_vars["AggDynamoDBTableName"]: {"Keys": c}}
-        )
-        logging.debug("Response from BatchgetData : {}".format(response))
-        print("Response from BatchgetData : {}".format(response))
-
-        low_level_data = response["Responses"][env_vars["AggDynamoDBTableName"]]
-        all_low_level_data.extend(low_level_data)
-
-    logging.info(
-        "Len of data received from BatchGetItem Dynamo : {}".format(
-            (len(all_low_level_data))
-        )
-    )
-
-    # Deserialize the data
-    python_data = [
-        dynamo_helper.deserializer_from_ddb(x, deserializer)
-        for x in all_low_level_data
-    ]
-
-    logging.info(
-        "Len of deserialized data from BatchGetItem Dynamo : {}".format(
-            (len(python_data))
-        )
-    )
-
-    logging.info("Getting metrics for unique spanId and timestamps...Done")
-
-    return python_data
-
-
-def get_metric_data_from_dynamo_batch_from_ODM_table(unique_span_timestamps):
-    """
-    Gets the metric data from dynamo for given spanId. Does a query on the spanID.
-
-    Parameters
-    ----------
-    unique_span_timestamps: list of Dict
-        The list of dict containing the spanID and granular timestamp for wheihc we are queryung the data
-    """
-
-    logging.info("Getting metrics for unique spanId and timestamps")
-
+    # convert to specific format for querying the dynamoDB table
+    all_data_for_query = []
     for x in unique_span_timestamps:
-        x["spanId_metricname"] = x.pop(
-            "spanId"
-        )  # rename the spanId to spanId_metricname
-        x["timestamp"] = (
-            datetime.datetime.strptime(
-                x["timestamp"], DATETIME_FOMRAT
-            ).isoformat()[:-2]
-            + "00.000000+0000"
+        print(x)
+
+        modified_ts = datetime.datetime.strptime(x[1], DATETIME_FORMAT).replace(
+            tzinfo=datetime.timezone.utc, microsecond=0
         )
+        all_data_for_query.append((x[0] + "_speed", modified_ts))
 
-    # rename the span_id to spanid_metric_name
-    # unique_span_timestamps = [x.update({x['spanId'] : x['spanId'] + "_speed"}) for x in unique_span_timestamps]
-    # logging.info('renamed unique_span_timestamps')
-
-    # serialize the data to send for querying
-    serialized_unique_span_timestamps = [
-        dynamo_helper.serialize_to_ddb(x, serializer)
-        for x in unique_span_timestamps
-    ]
-    logging.info(
-        "Need to get metrics for {} Unqiue span-timestamp".format(
-            (len(serialized_unique_span_timestamps))
+    logger.info(
+        "Converted timestamp to UTC format : \n{}".format(
+            pformat(all_data_for_query)
         )
     )
-    print("Serialized data is : {}".format(serialized_unique_span_timestamps))
 
-    # query data in batches of 100
-    all_low_level_data = []
-    for c in chunks(serialized_unique_span_timestamps, 100):
+    unique_span_timestamps_for_get = all_data_for_query
 
-        print(c)
-        response = dynamo_client.batch_get_item(
-            RequestItems={env_vars["AggDynamoDBTableName"]: {"Keys": c}}
-        )
-        logging.debug("Response from BatchgetData : {}".format(response))
-        print("Response")
+    # extract the items in the list
 
-        low_level_data = response["Responses"][env_vars["AggDynamoDBTableName"]]
-        all_low_level_data.extend(low_level_data)
-
-    logging.info(
-        "Len of data received from BatchGetItem Dynamo : {}".format(
-            (len(all_low_level_data))
+    logger.info(
+        "Data converted as model for querying: \n{}".format(
+            pformat(unique_span_timestamps_for_get)
         )
     )
-    print("Response")
-    # Deserialize the data
-    python_data = [
-        dynamo_helper.deserializer_from_ddb(x, deserializer)
-        for x in all_low_level_data
-    ]
-    logging.info(
-        "Len of deserialized data from BatchGetItem Dynamo : {}".format(
-            (len(python_data))
+
+    response = ddb.batch_get(unique_span_timestamps_for_get)
+    logger.info("Response from dynamo : \n{}".format(pformat(response)))
+
+    aggregate_values_from_dynamo = [x.attribute_values for x in response]
+    logger.info(
+        "Response as dictionary from Dynamo : \n{}".format(
+            pformat(aggregate_values_from_dynamo)
         )
     )
-    logging.debug(
-        "Deserialized data from BatchGetItem Dynamo : {}".format((python_data))
+
+    for x in aggregate_values_from_dynamo:
+        x["speed"] = x.pop("value")
+
+    logger.info(
+        "Response renamed from Dynamo : \n{}".format(
+            pformat(aggregate_values_from_dynamo)
+        )
     )
-    for p in python_data:
-        p["spanId"] = p.pop("spanId_metricname")
-        p["timestamp"] = p["timestamp"][:19].replace("T", " ")
-    print("Python Data is : {}".format(python_data))
 
-    logging.info("Getting metrics for unique spanId and timestamps...Done")
-
-    return python_data
+    return aggregate_values_from_dynamo
 
 
-def convert_to_putItem_format(item):
-    return {
-        "PutRequest": {"Item": dynamo_helper.serialize_to_ddb(item, serializer)}
-    }
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+DATETIME_FORMAT2 = "%Y-%m-%dT%H:%M:%S.%f%z"
 
-
-def convert_to_dynamo_put_item_format(aggregate_values):
-    """
-    Converts the aggregate values to DynamoDB's client PutItemRequest format for
-    sending data in batches.
-    """
-
-    logging.info("Converting the data to dynamo Put Item Type")
-
-    # convert all types to string - as float is not convertible to DynamoDB Type
-    aggregate_values_as_list = list(
-        (aggregate_values.to_dict(orient="index")).values()
-    )
-    print(aggregate_values_as_list)
-
-    # convert to put item_type
-    aggregated_values_as_put_item = list(
-        map(convert_to_putItem_format, aggregate_values_as_list)
-    )
-    logging.debug(
-        "PutItem Formatted Data : {}".format((aggregated_values_as_put_item))
-    )
-    logging.info("Converting the data to dynamo Put Item Type...Done")
-
-    return aggregated_values_as_put_item
-
-
-DATETIME_FOMRAT = "%Y-%m-%d %H:%M:%S"
-
-
-def update_data_in_dynamo_using_ODM(aggregate_values):
-    """
-    Converts the aggregate values to DynamoDB's client PutItemRequest format for
-    sending data in batches.
-    """
-
-    logging.info("Updating aggregate tables using ODM")
-
-    # convert all types to string - as float is not convertible to DynamoDB Type
-    aggregate_values_as_list = list(
-        (aggregate_values.to_dict(orient="index")).values()
-    )
-    # print(aggregate_values_as_list)
-    data_as_ODM_model = []
-    for x in aggregate_values_as_list:
-        # print(x)
-        d2 = {
-            "spanId_metricname": x["spanId"],
-            "timestamp": datetime.datetime.strptime(
-                x["timestamp"], DATETIME_FOMRAT
-            ),
-            "value": x["speed"],
-            "count": x["count"],
-        }
-
-        data_as_ODM_model.append(AggregationModel(**d2))
-
-        if len(data_as_ODM_model) % 25 == 0:
-            print(data_as_ODM_model)
-            sess.add_items(data_as_ODM_model)
-            sess.commit_items()
-            data_as_ODM_model = []
-
-    print(data_as_ODM_model)
-    sess.add_items(data_as_ODM_model)
-    sess.commit_items()
-
-    logging.info("Updating aggregate tables using ODM...Done")
-
-    return "Done"
 
 
 # Create a function called "chunks" with two arguments, l and n:
@@ -335,18 +139,31 @@ def format_event_data(extracted_data):
     other columns to float, and spanId, timestamp column to string back
     """
 
-    logging.info("Converting event data to Dataframe")
+    logger.info("Converting event data to Dataframe")
 
     # convert to df
-    event_df = pd.DataFrame(json_normalize(extracted_data))
-    logging.info(
-        "Event Dataframe is: \n{}".format(event_df[["timestamp", "spanId"]])
+    for x in extracted_data:
+        x["timestamp"] = datetime.datetime.strftime(
+            datetime.datetime.strptime(x["timestamp"], DATETIME_FORMAT)
+            .replace(tzinfo=datetime.timezone.utc, microsecond=0)
+            .replace(second=0),
+            DATETIME_FORMAT2,
+        )
+
+    logging.debug(
+        "Data after converting to timestamp : \n{}".format(
+            pformat(extracted_data)
+        )
     )
-    event_df["timestamp"] = (pd.to_datetime(event_df["timestamp"])).astype(
-        "datetime64[m]"
-    )  # floor to minute
-    logging.info(
-        "Event Dataframe is: \n{}".format(event_df[["timestamp", "spanId"]])
+    event_df = pd.DataFrame(extracted_data)
+
+    logging.debug("Event Dataframe is: \n{}".format(event_df))
+    event_df["timestamp"] = pd.to_datetime(event_df["timestamp"])
+    # floor to minute
+    logging.debug(
+        "Timestamp,SpanId,speed in event dataframe is: \n{}".format(
+            event_df[["timestamp", "spanId", "speed"]]
+        )
     )
 
     for col in ["spanId", "timestamp"]:
@@ -354,13 +171,7 @@ def format_event_data(extracted_data):
         event_df[col] = event_df[col].astype(str)
 
     # convert columns to float
-    cols_to_float = list(event_df.columns)
-    print(cols_to_float)
-    cols_to_float.remove("spanId")
-    cols_to_float.remove("timestamp")
-    print(cols_to_float)
-    for col in ["speed"]:
-        event_df[col] = event_df[col].astype(float)
+    event_df["speed"] = event_df["speed"].astype(float)
 
     # add a count column
     event_df["count"] = 1.0
@@ -368,9 +179,16 @@ def format_event_data(extracted_data):
     # change the event data frame to include the metric name
     event_df["spanId"] = event_df["spanId"] + "_speed"
 
-    logging.info("Converting event data to Dataframe...Done")
+    logger.info(
+        "Formatted event data frame is : \n{}".format(
+            event_df[["timestamp", "spanId", "speed", "count"]]
+        )
+    )
+    event_df.rename(columns={"spanId": "spanId_metricname"}, inplace=True)
 
-    return event_df
+    logger.info("Converting event data to Dataframe...Done")
+
+    return event_df[["timestamp", "spanId_metricname", "speed", "count"]]
 
 
 def format_combined_event_data(extracted_data):
@@ -379,7 +197,7 @@ def format_combined_event_data(extracted_data):
     other columns to float, and spanId, timestamp column to string back
     """
 
-    logging.info("Converting event data to Dataframe")
+    logger.info("Converting event data to Dataframe")
 
     # convert to df
     event_df = pd.DataFrame(extracted_data)
@@ -400,43 +218,9 @@ def format_combined_event_data(extracted_data):
     for col in ["speed"]:
         event_df[col] = event_df[col].astype(float)
 
-    logging.info("Converting event data to Dataframe...Done")
+    logger.info("Converting event data to Dataframe...Done")
 
     return event_df
-
-
-def find_unique_span_timestamp_pairs(event_df):
-    """
-    Find the unique spanId and granular timestamps from the DBstream even
-
-    Returns
-    -------
-    data : list of Dict
-        returned value is a list of dict
-        [ {'spanId': '...' , 'timestamp' : '...'},
-          {'spanId': '...' , 'timestamp' : '...'},
-          {'spanId': '...' , 'timestamp' : '...'},
-        ]
-    """
-    logging.info("Finding unique spanId-timestamp")
-
-    unique_span_timestamps = event_df.drop_duplicates(
-        subset=["spanId", "timestamp"]
-    )[["spanId", "timestamp"]]
-
-    unique_span_timestamps = list(
-        unique_span_timestamps.to_dict(orient="index").values()
-    )
-
-    logging.info(
-        "Len of unique span-timestamp pairs : {}".format(
-            len(unique_span_timestamps)
-        )
-    )
-
-    logging.info("Finding unique spanId-timestamp...Done")
-
-    return unique_span_timestamps
 
 
 def combine_event_dynamo_df(event_df, metrics_from_dynamo_df):
@@ -444,7 +228,7 @@ def combine_event_dynamo_df(event_df, metrics_from_dynamo_df):
     Stacks the event dataframe and metrics from DynamoDB. Additionally converts
     spanId and timestamp column to string. And other columns to float
     """
-    logging.info("Combining 2 event and metric dataframe")
+    logger.info("Combining 2 event and metric dataframe")
 
     all_metrics = pd.concat(
         [event_df, metrics_from_dynamo_df],
@@ -452,15 +236,16 @@ def combine_event_dynamo_df(event_df, metrics_from_dynamo_df):
         sort=False,
         axis=0,
     )
+    all_metrics["timestamp"] = all_metrics["timestamp"].astype(str)
 
-    all_metrics = format_combined_event_data(all_metrics)
+    # all_metrics = format_combined_event_data(all_metrics)
 
-    logging.info("Combining 2 event and metric dataframe...Done")
+    logger.info("Combining 2 event and metric dataframe...Done")
     return all_metrics
 
 
 def extract_data_from_kinesis(event):
-    logging.info("Extracting data from Kinesis")
+    logger.info("Extracting data from Kinesis")
 
     all_records = []
     for r in event["Records"]:
@@ -471,86 +256,138 @@ def extract_data_from_kinesis(event):
         print(data)
         all_records.append(data)
 
-    logging.info("All records : {}".format((all_records)))
+    logging.debug("All records : {}".format((all_records)))
 
-    logging.info("Extracting data from Kinesis...Done")
+    logger.info("Extracting data from Kinesis...Done")
 
     return all_records
 
 
-def handler(event, context):
-    logging.info(
-        "Number of records in event : {}".format(len(event["Records"]))
+def find_unique_span_timestamp(extracted_data):
+    """
+    Extracted unique span and timestamps
+    """
+    # floor the timestamp to the minute
+    all_data = []
+    for x in extracted_data:
+        x["timestamp"] = datetime.datetime.strftime(
+            datetime.datetime.strptime(x["timestamp"], DATETIME_FORMAT)
+            .replace(tzinfo=datetime.timezone.utc)
+            .replace(second=0),
+            DATETIME_FORMAT,
+        )
+        #
+        all_data.append((x["spanId"], x["timestamp"]))
+
+    logging.debug(
+        "Extracted spanId and timestamps are : \n{}".format(pformat(all_data))
     )
+
+    # find the unique span-ts pairs
+    unique_span_timestamps = list(set(all_data))
+    logger.info(
+        "Extracted unqiue spanId and timestamps are : \n{}".format(
+            pformat(unique_span_timestamps)
+        )
+    )
+    return unique_span_timestamps
+
+
+def update_data_in_dynamo_using_ODM(aggregate_values):
+    """
+    Converts the aggregate values to DynamoDB's client PutItemRequest format for
+    sending data in batches.
+    """
+
+    logger.info("Updating aggregate tables using ODM")
+
+    # convert all types to string - as float is not convertible to DynamoDB Type
+    aggregate_values_as_list = list(
+        (aggregate_values.to_dict(orient="index")).values()
+    )
+    # print(aggregate_values_as_list)
+    data_as_ODM_model = []
+    for x in aggregate_values_as_list:
+        # print(x)
+        d2 = {
+            "spanId_metricname": x["spanId_metricname"],
+            "timestamp": datetime.datetime.strptime(
+                x["timestamp"], "%Y-%m-%d %H:%M:%S+00:00"
+            ),  # convert to datetime for storing in dynamo
+            "value": x["speed"],
+            "count": x["count"],
+        }
+
+        data_as_ODM_model.append(AggregationModel(**d2))
+
+    logging.debug("As aggregate model : {}".format(data_as_ODM_model))
+
+    ddb.session.add_items(data_as_ODM_model)
+    ddb.session.commit_items()
+
+    logger.info("Updating aggregate tables using ODM...Done")
+
+    return "Done"
+
+
+def handler(event, context):
+    logger.info("Number of records in event : {}".format(len(event["Records"])))
 
     #############################
     # Extract data from Kinesis #
     #############################
     extracted_data = extract_data_from_kinesis(event)
-    logging.info("Len of Extracted records : {}".format((len(extracted_data))))
+    logger.info("Len of Extracted records : {}".format((len(extracted_data))))
 
-    # Convert to Dataframe and set correct types
-    event_df = format_event_data(extracted_data)
-    logging.debug("Formatted DF : \n{}".format(event_df))
+    ##############################
+    # Find unqiue span timestamp #
+    ##############################
+    unique_span_timestamps = find_unique_span_timestamp(extracted_data)
 
-    # find unique span-timestamp combos
-    # returned value is a list of dict
-    # [ {'spanId': '...' , 'timestamp' : '...'},
-    #   {'spanId': '...' , 'timestamp' : '...'},
-    #   {'spanId': '...' , 'timestamp' : '...'},
-    # ]
-    unique_span_timestamps = find_unique_span_timestamp_pairs(event_df)
-    logging.info(
-        "Len of Unqiue span-timestamp pairs : {}".format(
-            (len(unique_span_timestamps))
-        )
-    )
-    logging.debug(
-        "Unqiue span-timestamp pairs : \n{}".format((unique_span_timestamps))
-    )
-
-    # get the metrics for these unique span-timestamp combos
-    # metrics_from_dynamo = get_metric_data_from_dynamo_batch(
-    #     unique_span_timestamps
-    # )
-    metrics_from_dynamo = get_metric_data_from_dynamo_batch_from_ODM_table(
+    ###########################################
+    # Get the metrics for these span-ts pairs #
+    ###########################################
+    metrics_from_dynamo = get_metric_data_from_dynamo_batch_from_ODM_table_read(
         unique_span_timestamps
     )
-
-    metrics_from_dynamo_df = pd.DataFrame(metrics_from_dynamo)
-    logging.info(
+    logger.info(
         "Len of metrics received from dynamo : {}".format(
             len(metrics_from_dynamo)
         )
     )
+    metrics_from_dynamo_df = pd.DataFrame(metrics_from_dynamo)
+    logger.info(
+        "Metrics from Dynamo converted to dataframe : \n{}".format(
+            (metrics_from_dynamo_df)
+        )
+    )
+
+    ###################################################
+    # Combine the metric and event dataframe into one #
+    ###################################################
+    # convert the event_df
+    event_df = format_event_data(extracted_data)
+    logging.debug("Event DF : \n{}".format(event_df))
+    logging.debug("Metric DF : \n{}".format(metrics_from_dynamo_df))
 
     # combine the dataframe we got from DynamoDB and the dataframe from event
     combined_df = combine_event_dynamo_df(event_df, metrics_from_dynamo_df)
-    logging.debug("Combined dataframe : \n{}".format((combined_df)))
+    logger.info("Combined dataframe : \n{}".format((combined_df)))
 
-    # Update the metrics
+    ######################
+    # Update the metrics #
+    ######################
     aggregate_values = aggregation_lib.update_average_metrics(
         combined_df,
-        group_by_columns=["spanId", "timestamp"],
+        group_by_columns=["spanId_metricname", "timestamp"],
         mean_columns=["speed"],
         count_column=["count"],
     )
-    logging.debug("Updated metric values are : \n{}".format(aggregate_values))
-    print("Aggregate values are : {}".format(aggregate_values))
+    logger.info("Updated metric values are : \n{}".format(aggregate_values))
 
+    #######################################
+    # Update these new values in dynamoDB #
+    #######################################
     update_data_in_dynamo_using_ODM(aggregate_values)
 
-    # # convert to dynamo Put Item type - as we want to do batch write to dynamo
-    # dynamo_putItems = convert_to_dynamo_put_item_format(aggregate_values)
-
-    # # send to dynamo in batches-batch size is 25 (Max value by Dynamo)
-    # for batch in chunks(dynamo_putItems, 25):
-    #     response = dynamo_client.batch_write_item(
-    #         RequestItems={env_vars["AggDynamoDBTableName"]: batch}
-    #     )
-    #     logging.info(
-    #         "Response from updating metric in batch : {}".format(
-    #             response["ResponseMetadata"]["HTTPStatusCode"]
-    #         )
-    #     )
     return "Done updating speed"
