@@ -8,6 +8,8 @@ from pprint import pformat, pprint
 
 from pvapps_odm.Schema.models import SpanModel
 
+os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
+
 logging.getLogger("index").setLevel(logging.INFO)
 
 sys.path.append(
@@ -32,7 +34,6 @@ logger.setLevel(logging.INFO)
 import os
 import mock
 
-os.environ["OutputKinesisStreamName"] = "dan_dax_output"
 
 
 class TestCreateTimeSeriesRecord(unittest.TestCase):
@@ -428,10 +429,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         self.assertEqual(len(valid_data), 0)
         logging.info("Testing remove_invalid_trip_data...Done")
 
-    @unittest.SkipTest
+    # @unittest.SkipTest
     def test_handler2(self):
         print("xxxxxxxxx")
-        with open(".gcsample_span_calculation_input.json") as f:
+        with open("sample_span_calculation_input.json") as f:
             event = json.load(f)
         handler(event, None)
 
