@@ -4,7 +4,9 @@ import logging
 import os
 import sys
 import unittest
-from pprint import pformat
+from pprint import pformat, pprint
+
+from pvapps_odm.Schema.models import SpanModel
 
 logging.getLogger("index").setLevel(logging.INFO)
 
@@ -18,6 +20,7 @@ from Functions.CreateTimeseriesRecord.index import (
     get_all_records_in_event,
     remove_invalid_trip_data,
     get_unique_device_ids_from_records,
+    get_spans_for_devices_from_DAX_batch_usingODM,
 )
 
 
@@ -96,7 +99,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             }
         ]
         logger.info("Testing handler")
-        # with open("./sample_span_calculation_input.json") as f:
+        # with open(".gcsample_span_calculation_input.json") as f:
         # event = json.load(f)
         # logger.debug("Event is : {}".format(event))
         records = handler({}, None)
@@ -430,7 +433,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
     @unittest.SkipTest
     def test_handler2(self):
         print("xxxxxxxxx")
-        with open("./sample_span_calculation_input.json") as f:
+        with open(".gcsample_span_calculation_input.json") as f:
             event = json.load(f)
         handler(event, None)
 
@@ -524,6 +527,38 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         for r in ans:
             self.assertTrue(r["deviceId"] in ["1"])
         logging.info("Testing get_unique_device_ids_from_records...Done")
+
+    @mock.patch("Functions.CreateTimeseriesRecord.index.ddb")
+    def test_get_spans_for_devices_from_DAX_batch_usingODM_no_spans_exist(
+        self, mock_dbcon
+    ):
+        mock_dbcon.batch_get.return_value = []
+        ans = get_spans_for_devices_from_DAX_batch_usingODM(
+            [{"deviceId": "123"}]
+        )
+        self.assertEqual(len(ans), 0)
+
+    @mock.patch("Functions.CreateTimeseriesRecord.index.ddb")
+    def test_get_spans_for_devices_from_DAX_batch_usingODM_span_exist(
+        self, mock_dbcon
+    ):
+        data_for_spans = {
+            "deviceId": "123",
+            "spans": json.dumps(
+                [
+                    {
+                        "spanId": "1",
+                        "start_time": "2019-05-22T10:45:05.154000Z",
+                        "end_time": "2019-05-22T10:47:06.154000Z",
+                    }
+                ]
+            ),
+        }
+        mock_dbcon.batch_get.return_value = [SpanModel(**data_for_spans)]
+        ans = get_spans_for_devices_from_DAX_batch_usingODM(
+            [{"deviceId": "123"}]
+        )
+        self.assertEqual(len(ans), 1)
 
 
 def suite():
