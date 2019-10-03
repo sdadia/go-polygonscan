@@ -18,7 +18,6 @@ import uuid
 from pvapps_odm.Schema.models import SpanModel
 from pvapps_odm.session import dynamo_session
 from pvapps_odm.ddbcon import dynamo_dbcon
-from pvapps_odm.Schema.models import SpanModel
 from pvapps_odm.ddbcon import Connection
 
 sess = dynamo_session(SpanModel)
@@ -34,7 +33,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("index")
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.INFO)
 
 ######################################################
 ##                                                  ##
@@ -887,7 +886,7 @@ def handler(event, context):
     #########################################
     # Writing tagged data to kinesis stream #
     #########################################
-    # send_tagged_data_to_kinesis(tagged_data)
+    send_tagged_data_to_kinesis(tagged_data)
 
     logger.info("Starting...Done")
 
