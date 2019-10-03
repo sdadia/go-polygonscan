@@ -221,7 +221,55 @@ def sort_data_by_date(data_list, attribute_to_sort, reverse=False):
 
 
 def remove_invalid_trip_data(telematics_data):
-    logger.info("Finding relevant trip non trip data")
+    """
+    This function removes the datapoints with invalid GPS coordinates. 
+    The invalid GPS coordinates are the one whose status key is zero.
+
+    Parameters
+    ----------
+    telematics_data : list of dictionary
+        The telematics data in pvams format
+        [
+            {
+                "acc": "0",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "gps": {
+                    "GPSTime": "2019-05-22T10:45:14Z",
+                    "alt": "41.10",
+                    "course": "326.74",
+                    "geoid": "55.00",
+                    "lat": "5319.8246N",
+                    "lng": "622.34160W",
+                    "speed": "0.98",
+                    "status": "1",
+                },
+                "io": "00000000",
+                "timeStamp": "2019-05-22T10:45:14.154Z",
+            },
+            {
+                "acc": "0",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "gps": {
+                    "GPSTime": "2019-05-22T10:45:14Z",
+                    "alt": "41.10",
+                    "course": "326.74",
+                    "geoid": "55.00",
+                    "lat": "0.0",
+                    "lng": "0.0",
+                    "speed": "0.0",
+                    "status": "0",
+                },
+                "io": "00000000",
+                "timeStamp": "2019-05-22T10:45:14.154Z",
+            },
+        ]
+
+    Returns
+    -------
+    valid_data : list of dictionary
+        The same dataset without the invalid points
+    """
+    logger.info("Removing invalid trip data")
 
     trip = []
 
@@ -231,13 +279,15 @@ def remove_invalid_trip_data(telematics_data):
         # continue
         # ignore points with incorrect latitude and longitude
         # print(element)
-        if element["gps"]["lat"] == "" or element["gps"]["lng"] == "":
+        if element["gps"]["status"] == "0":
             continue
+        # if element["gps"]["lat"] == "0.0" or element["gps"]["lng"] == "":
+        # continue
         else:
             trip.append(element)
 
     logger.info("Number of data points which are valid : {}".format(len(trip)))
-    logger.info("Finding relevant trip non trip data...Done")
+    logger.info("Removing invalid trip data...Done")
 
     return trip
 

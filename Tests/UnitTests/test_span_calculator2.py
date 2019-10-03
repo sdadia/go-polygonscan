@@ -281,6 +281,147 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             self.assertEqual(e1, e2)
         logging.info("Testing get_all_records_in_event function...Done")
 
+    def test_remove_invalid_trip_data(self):
+        """
+        Test if we can remvoe invalid records from a list of records
+        """
+        logging.info("Testing remove_invalid_trip_data")
+        data = [
+            {
+                "acc": "0",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "gps": {
+                    "GPSTime": "2019-05-22T10:45:14Z",
+                    "alt": "41.10",
+                    "course": "326.74",
+                    "geoid": "55.00",
+                    "lat": "5319.8246N",
+                    "lng": "622.34160W",
+                    "speed": "0.98",
+                    "status": "1",
+                },
+                "io": "00000000",
+                "timeStamp": "2019-05-22T10:45:14.154Z",
+            },
+            {
+                "acc": "0",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "gps": {
+                    "GPSTime": "2019-05-22T10:45:14Z",
+                    "alt": "41.10",
+                    "course": "326.74",
+                    "geoid": "55.00",
+                    "lat": "0.0",
+                    "lng": "0.0",
+                    "speed": "0.0",
+                    "status": "0",
+                },
+                "io": "00000000",
+                "timeStamp": "2019-05-22T10:45:14.154Z",
+            },
+        ]
+        valid_data = remove_invalid_trip_data(data)
+        self.assertEqual(len(valid_data), 1)
+        self.assertEqual(valid_data[0], data[0])
+        logging.info("Testing remove_invalid_trip_data...Done")
+
+    def test_remove_invalid_trip_data_all_invalid(self):
+        """
+        Test if we can remvoe invalid records from a list of records
+        """
+        logging.info("Testing remove_invalid_trip_data")
+        data = [
+            {
+                "acc": "0",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "gps": {
+                    "GPSTime": "2019-05-22T10:45:14Z",
+                    "alt": "41.10",
+                    "course": "326.74",
+                    "geoid": "55.00",
+                    "lat": "5319.8246N",
+                    "lng": "622.34160W",
+                    "speed": "0.98",
+                    "status": "0",
+                },
+                "io": "00000000",
+                "timeStamp": "2019-05-22T10:45:14.154Z",
+            },
+            {
+                "acc": "0",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "gps": {
+                    "GPSTime": "2019-05-22T10:45:14Z",
+                    "alt": "41.10",
+                    "course": "326.74",
+                    "geoid": "55.00",
+                    "lat": "10.0",
+                    "lng": "10.0",
+                    "speed": "10.0",
+                    "status": "0",
+                },
+                "io": "00000000",
+                "timeStamp": "2019-05-22T10:45:14.154Z",
+            },
+        ]
+        valid_data = remove_invalid_trip_data(data)
+        self.assertEqual(len(valid_data), 0)
+        logging.info("Testing remove_invalid_trip_data...Done")
+
+    def test_remove_invalid_trip_data_all_valid(self):
+        """
+        Test if we can remvoe invalid records from a list of records
+        """
+        logging.info("Testing remove_invalid_trip_data")
+        data = [
+            {
+                "acc": "0",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "gps": {
+                    "GPSTime": "2019-05-22T10:45:14Z",
+                    "alt": "41.10",
+                    "course": "326.74",
+                    "geoid": "55.00",
+                    "lat": "5319.8246N",
+                    "lng": "622.34160W",
+                    "speed": "0.98",
+                    "status": "1",
+                },
+                "io": "00000000",
+                "timeStamp": "2019-05-22T10:45:14.154Z",
+            },
+            {
+                "acc": "0",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "gps": {
+                    "GPSTime": "2019-05-22T10:45:14Z",
+                    "alt": "41.10",
+                    "course": "326.74",
+                    "geoid": "55.00",
+                    "lat": "10.0",
+                    "lng": "10.0",
+                    "speed": "10.0",
+                    "status": "1",
+                },
+                "io": "00000000",
+                "timeStamp": "2019-05-22T10:45:14.154Z",
+            },
+        ]
+        valid_data = remove_invalid_trip_data(data)
+        self.assertEqual(len(valid_data), 2)
+        for e1, e2 in zip(data, valid_data):
+            self.assertEqual(e1, e2)
+        logging.info("Testing remove_invalid_trip_data...Done")
+
+    def test_remove_invalid_trip_data_no_data(self):
+        """
+        Test if we can remvoe invalid records from a list of records
+        """
+        logging.info("Testing remove_invalid_trip_data")
+        data = []
+        valid_data = remove_invalid_trip_data(data)
+        self.assertEqual(len(valid_data), 0)
+        logging.info("Testing remove_invalid_trip_data...Done")
 
 
 def suite():
