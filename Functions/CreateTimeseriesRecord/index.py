@@ -44,8 +44,8 @@ envVarsList = ["SpanDynamoDBTableName", "DAXUrl", "OutputKinesisStreamName"]
 for var in envVarsList:
     if var in os.environ.keys():
         env_vars[var] = os.environ[var]
-env_vars['SpanDynamoDBTableName'] = SpanModel.Meta.table_name
-logging.info('Environment variables are : {}'.format(env_vars))
+env_vars["SpanDynamoDBTableName"] = SpanModel.Meta.table_name
+logging.info("Environment variables are : {}".format(env_vars))
 ######################################################
 ##                                                  ##
 ##      Database Connection Initialisation          ##
@@ -56,6 +56,7 @@ deserializer = boto3.dynamodb.types.TypeDeserializer()
 serializer = boto3.dynamodb.types.TypeSerializer()
 
 from pvapps_odm.ddbcon import dynamo_dbcon
+
 ddb = dynamo_dbcon(SpanModel, conn=Connection())
 ddb.connect()
 
@@ -64,11 +65,7 @@ if "DAXUrl" in env_vars:
     logging.warn("Using Dynamo with DAX")
     session = botocore.session.get_session()
     dax = amazondax.AmazonDaxClient(
-        session,
-        region_name="us-east-1",
-        endpoints=[
-            env_vars['DAXUrl']
-        ],
+        session, region_name="us-east-1", endpoints=[env_vars["DAXUrl"]]
     )
     dynamo_client = dax
 else:
@@ -78,7 +75,7 @@ else:
 kinesis_client = boto3.client("kinesis")
 
 
-DATETIME_FOMRAT = "%Y-%m-%d %H:%M:%S"
+DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 ################################
 # ODM imports
@@ -96,30 +93,37 @@ def _grouper(iterable, n=25):
         if not chunk:
             return
         yield chunk
-        
-    
+
 
 def get_spans_for_devices_from_DAX_batch_usingODM(device_ids):
     """
     Gets the spans for list of deviceIds from DynamoDB DAX
     """
-    logging.info('Getting Spans data for specific device from DAX using ODM')
-    only_device_ids = [x['deviceId'] for x in device_ids]
+    logging.info("Getting Spans data for specific device from DAX using ODM")
+    only_device_ids = [x["deviceId"] for x in device_ids]
     response = ddb.batch_get(only_device_ids)
-    logging.debug("Response from request on DAX using ODM : {}".format(response))
-    
+    logging.debug(
+        "Response from request on DAX using ODM : {}".format(response)
+    )
+
     # extract the attributes from the object
     response = [x.attribute_values for x in response]
-    logging.info("Response attributes from request on DAX using ODM : {}".format(response))
-    
+    logging.info(
+        "Response attributes from request on DAX using ODM : {}".format(
+            response
+        )
+    )
+
     for x in response:
         x["spans"] = json.loads(x["spans"])
         x["spans"] = format_spans(x["spans"])
         x["spans"] = sort_data_by_date(x["spans"], "end_time")
-    
 
-    logging.info('Getting Spans data for specific device from DAX using ODM...Done')
+    logging.info(
+        "Getting Spans data for specific device from DAX using ODM...Done"
+    )
     return response
+
 
 def get_spans_for_devices_from_DAX_batch(device_ids):
     """
@@ -174,7 +178,7 @@ def format_spans(
     if as_datetime:
         for x in span_list:
             for t in to_format_as_time:
-                x[t] = datetime.datetime.strptime(x[t], DATETIME_FOMRAT)
+                x[t] = datetime.datetime.strptime(x[t], DATETIME_FORMAT)
     else:
         for x in span_list:
             for t in to_format_as_time:
@@ -191,8 +195,9 @@ def format_data_pts_in_rec(
 
     if as_datetime:
         for x in span_list:
+            print(x)
             for t in to_format_as_time:
-                x[t] = datetime.datetime.strptime(x[t], DATETIME_FOMRAT)
+                x[t] = datetime.datetime.strptime(x[t], DATETIME_FORMAT)
     else:
         for x in span_list:
             for t in to_format_as_time:
@@ -223,12 +228,13 @@ def remove_invalid_trip_data(telematics_data):
 
     for index, element in enumerate(telematics_data):
         # ignore acc Off and parking > 180 sec
-        if element["parkTime"] > 180 and element["acc"] == 0:
-            continue
+        # if element["parkTime"] > 180 and element["acc"] == 0:
+        # continue
         # ignore points with incorrect latitude and longitude
-        elif (
-            element["gps"]["latitude"] is None
-            or element["gps"]["longitude"] is None
+        print(element)
+        if (
+            element["gps"]["lat"] == ''
+            or element["gps"]["lng"] == ''
         ):
             continue
         else:
@@ -460,7 +466,7 @@ def process_spans(all_spans, array_start_time, array_end_time):
         # return all_spans, span_id, False
 
 
-def get_all_records_in_event(event):
+def get_all_records_in_event2(event):
 
     logging.info("Getting all the records from event")
 
@@ -473,6 +479,35 @@ def get_all_records_in_event(event):
         all_records.append(decoded_rec)
 
         logging.debug("Decoded record is : {}".format(decoded_rec))
+        logging.info("Len of decoded record is : {}".format(len(decoded_rec)))
+
+    logging.info("Getting all the records from event...Done")
+
+    return all_records
+
+
+def get_all_records_in_event(event):
+
+    logging.info("Getting all the records from event")
+
+    all_records = []  # holds all records
+    for rec in event["Records"]:
+
+        decoded_rec = json.loads(
+            b64decode(rec["kinesis"]["data"]).decode("utf-8")
+        )
+
+        for d in decoded_rec["message"]["payload"]["context"]["tracking"]:
+            d["deviceId"] = decoded_rec["message"]["from"]
+
+        data = {
+            "deviceId": decoded_rec["message"]["from"],
+            "data": decoded_rec["message"]["payload"]["context"]["tracking"],
+        }
+        all_records.append(data['data'])
+        # all_records.append(decoded_rec)
+
+        logging.info("Decoded reCord is : \n{}".format(pformat(decoded_rec)))
         logging.info("Len of decoded record is : {}".format(len(decoded_rec)))
 
     logging.info("Getting all the records from event...Done")
@@ -563,7 +598,8 @@ def update_modified_device_spans_in_dynamo(device_spans_dict):
         )
 
     logging.info("updating modified device spans in dynamo...Done")
-    
+
+
 def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
     logging.info("updating modified device spans in dynamo using ODM")
 
@@ -575,30 +611,35 @@ def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
     for m_dev in modified_devices_span_dict:
         # convert time to sstring
         for sp in m_dev["spans"]:
-            sp["start_time"] = str(sp["start_time"])
-            sp["end_time"] = str(sp["end_time"])
+            sp["start_time"] = (sp["start_time"]).strftime(DATETIME_FORMAT)
+            # sp["start_time"] = (sp["start_time"]).isoformat()
+
+            # sp["end_time"] = (sp["end_time"]).isoformat()
+            sp["end_time"] = (sp["end_time"]).strftime(DATETIME_FORMAT)
+            # sp["start_time"] = datetime.datetime.strfmt(sp["start_time"], DATETIME_FORMAT)
+            # sp["end_time"] = str(sp["end_time"])
 
         m_dev["spans"] = json.dumps(m_dev["spans"])
-        
+
     pprint(modified_devices_span_dict)
     logging.info(
         "Converting to json modified device spans : {}".format(
             modified_devices_span_dict
         )
     )
-    
-    spans_dict_as_OMD_spanmodel  = []
+
+    spans_dict_as_OMD_spanmodel = []
     for x in modified_devices_span_dict:
-        data_for_ODM = {'deviceId' : x['deviceId'], 'spans' : x['spans']}
+        data_for_ODM = {"deviceId": x["deviceId"], "spans": x["spans"]}
         spans_dict_as_OMD_spanmodel.append(SpanModel(**data_for_ODM))
     pprint(spans_dict_as_OMD_spanmodel)
-    
+
     ddb.session.add_items(spans_dict_as_OMD_spanmodel)
     ddb.session.commit_items()
 
     # sess.add_items(spans_dict_as_OMD_spanmodel)
     # sess.commit_items()
-    
+
     logging.info("updating modified device spans in dynamo using ODM...Done")
 
 
@@ -622,7 +663,8 @@ def send_tagged_data_to_kinesis(tagged_data):
     for c in chunks:
         response = kinesis_client.put_records(
             # Records=c, StreamName="dan-span-output"
-            Records=c, StreamName=env_vars['OutputKinesisStreamName']
+            Records=c,
+            StreamName=env_vars["OutputKinesisStreamName"],
         )
         logging.info(
             "Response from Outputing to Kinesis Stream : {}".format(response)
@@ -666,7 +708,9 @@ def handler(event, context):
     ########################################
     # get spans for these unique deviceIds #
     ########################################
-    device_spans_dict = get_spans_for_devices_from_DAX_batch_usingODM(unique_deviceIds)
+    device_spans_dict = get_spans_for_devices_from_DAX_batch_usingODM(
+        unique_deviceIds
+    )
     print(device_spans_dict)
 
     ################
