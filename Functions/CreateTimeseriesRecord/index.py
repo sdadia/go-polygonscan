@@ -33,6 +33,7 @@ logging.basicConfig(
     format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+logger = logging.getLogger(__name__)
 
 ######################################################
 ##                                                  ##
@@ -45,7 +46,7 @@ for var in envVarsList:
     if var in os.environ.keys():
         env_vars[var] = os.environ[var]
 env_vars["SpanDynamoDBTableName"] = SpanModel.Meta.table_name
-logging.info("Environment variables are : {}".format(env_vars))
+logger.info("Environment variables are : {}".format(env_vars))
 ######################################################
 ##                                                  ##
 ##      Database Connection Initialisation          ##
@@ -62,14 +63,14 @@ ddb.connect()
 
 
 if "DAXUrl" in env_vars:
-    logging.warn("Using Dynamo with DAX")
+    logger.warn("Using Dynamo with DAX")
     session = botocore.session.get_session()
     dax = amazondax.AmazonDaxClient(
         session, region_name="us-east-1", endpoints=[env_vars["DAXUrl"]]
     )
     dynamo_client = dax
 else:
-    logging.warn("Using Dynamo without DAX")
+    logger.warn("Using Dynamo without DAX")
     dynamo_client = boto3.client("dynamodb")
 
 kinesis_client = boto3.client("kinesis")
@@ -99,16 +100,14 @@ def get_spans_for_devices_from_DAX_batch_usingODM(device_ids):
     """
     Gets the spans for list of deviceIds from DynamoDB DAX
     """
-    logging.info("Getting Spans data for specific device from DAX using ODM")
+    logger.info("Getting Spans data for specific device from DAX using ODM")
     only_device_ids = [x["deviceId"] for x in device_ids]
     response = ddb.batch_get(only_device_ids)
-    logging.debug(
-        "Response from request on DAX using ODM : {}".format(response)
-    )
+    logger.debug("Response from request on DAX using ODM : {}".format(response))
 
     # extract the attributes from the object
     response = [x.attribute_values for x in response]
-    logging.info(
+    logger.info(
         "Response attributes from request on DAX using ODM : {}".format(
             response
         )
@@ -119,7 +118,7 @@ def get_spans_for_devices_from_DAX_batch_usingODM(device_ids):
         x["spans"] = format_spans(x["spans"])
         x["spans"] = sort_data_by_date(x["spans"], "end_time")
 
-    logging.info(
+    logger.info(
         "Getting Spans data for specific device from DAX using ODM...Done"
     )
     return response
@@ -129,7 +128,7 @@ def get_spans_for_devices_from_DAX_batch(device_ids):
     """
     Gets the spans for list of deviceIds from DynamoDB DAX
     """
-    logging.info("Getting spans for deviceIds from DAX")
+    logger.info("Getting spans for deviceIds from DAX")
 
     all_low_level_data = []
 
@@ -147,7 +146,7 @@ def get_spans_for_devices_from_DAX_batch(device_ids):
             env_vars["SpanDynamoDBTableName"]
         ]
 
-        logging.info(
+        logger.info(
             "low level response from batch get spans : {}".format(
                 low_level_data
             )
@@ -164,8 +163,8 @@ def get_spans_for_devices_from_DAX_batch(device_ids):
         x["spans"] = format_spans(x["spans"])
         x["spans"] = sort_data_by_date(x["spans"], "end_time")
 
-    logging.debug("ALL span data : {}".format(pformat(all_spans_device_info)))
-    logging.info("Getting spans for deviceIds from DAX...Done")
+    logger.debug("ALL span data : {}".format(pformat(all_spans_device_info)))
+    logger.info("Getting spans for deviceIds from DAX...Done")
 
     return all_spans_device_info
 
@@ -173,7 +172,7 @@ def get_spans_for_devices_from_DAX_batch(device_ids):
 def format_spans(
     span_list, to_format_as_time=["start_time", "end_time"], as_datetime=True
 ):
-    logging.info("Formatting span data")
+    logger.info("Formatting span data")
 
     if as_datetime:
         for x in span_list:
@@ -184,18 +183,18 @@ def format_spans(
             for t in to_format_as_time:
                 x[t] = str(x[t])
 
-    logging.info("Formatting span data...Done")
+    logger.info("Formatting span data...Done")
     return span_list
 
 
 def format_data_pts_in_rec(
     span_list, to_format_as_time=["timeStamp"], as_datetime=True
 ):
-    logging.info("Formatting record data")
+    logger.info("Formatting record data")
 
     if as_datetime:
         for x in span_list:
-            print(x)
+            # print(x)
             for t in to_format_as_time:
                 x[t] = datetime.datetime.strptime(x[t], DATETIME_FORMAT)
     else:
@@ -203,7 +202,7 @@ def format_data_pts_in_rec(
             for t in to_format_as_time:
                 x[t] = str(x[t])
 
-    logging.info("Formatting record data...Done")
+    logger.info("Formatting record data...Done")
     return span_list
 
 
@@ -222,7 +221,7 @@ def sort_data_by_date(data_list, attribute_to_sort, reverse=False):
 
 
 def remove_invalid_trip_data(telematics_data):
-    logging.info("Finding relevant trip non trip data")
+    logger.info("Finding relevant trip non trip data")
 
     trip = []
 
@@ -231,17 +230,14 @@ def remove_invalid_trip_data(telematics_data):
         # if element["parkTime"] > 180 and element["acc"] == 0:
         # continue
         # ignore points with incorrect latitude and longitude
-        print(element)
-        if (
-            element["gps"]["lat"] == ''
-            or element["gps"]["lng"] == ''
-        ):
+        # print(element)
+        if element["gps"]["lat"] == "" or element["gps"]["lng"] == "":
             continue
         else:
             trip.append(element)
 
-    logging.info("Number of data points which are valid : {}".format(len(trip)))
-    logging.info("Finding relevant trip non trip data...Done")
+    logger.info("Number of data points which are valid : {}".format(len(trip)))
+    logger.info("Finding relevant trip non trip data...Done")
 
     return trip
 
@@ -253,15 +249,15 @@ def find_spans(start_time, end_time, all_spans):
     str_end_time = end_time[0]
     dt_end_time = end_time[1]
 
-    logging.info("{}".format((dt_start_time, type(dt_start_time))))
-    logging.info("{}".format((dt_end_time, type(dt_end_time))))
+    logger.info("{}".format((dt_start_time, type(dt_start_time))))
+    logger.info("{}".format((dt_end_time, type(dt_end_time))))
 
     # 10 minutes
     acceptable_time_delta = 10 * 60
     for idx, span in enumerate(all_spans):
-        # logging.info('Checking Span: {}'.format(span['spanId']))
-        # logging.info(span['start_time'])
-        # logging.info(span['end_time'])
+        # logger.info('Checking Span: {}'.format(span['spanId']))
+        # logger.info(span['start_time'])
+        # logger.info(span['end_time'])
         print("span finding logic - {}".format(span))
         span_start = span["start_time"]
         span_end = span["end_time"]
@@ -279,7 +275,7 @@ def find_spans(start_time, end_time, all_spans):
                     # Input:             ----
                     # Spans: ----
 
-                    # logging.info('Case 1.1.1: MET')
+                    # logger.info('Case 1.1.1: MET')
                     pass
 
                 else:
@@ -288,7 +284,7 @@ def find_spans(start_time, end_time, all_spans):
                     # Spans: ----
 
                     # Update End Time
-                    # logging.info('Case 1.1.2: MET')
+                    # logger.info('Case 1.1.2: MET')
                     return (idx, span["spanId"], [("end_time", str_end_time)])
 
             else:
@@ -300,7 +296,7 @@ def find_spans(start_time, end_time, all_spans):
                     # Spans: ----
 
                     # Update End Time
-                    # logging.info('Case 1.2.1: MET')
+                    # logger.info('Case 1.2.1: MET')
                     return (idx, span["spanId"], [("end_time", str_end_time)])
 
                 else:
@@ -308,7 +304,7 @@ def find_spans(start_time, end_time, all_spans):
                     # Input:   ----
                     # Spans: --------
 
-                    # logging.info('Case 1.2.2: MET')
+                    # logger.info('Case 1.2.2: MET')
                     return (idx, span["spanId"], [])
 
         else:
@@ -325,7 +321,7 @@ def find_spans(start_time, end_time, all_spans):
                     # Spans:     ----
 
                     # Update Start Time
-                    # logging.info('Case 2.1.1: MET')
+                    # logger.info('Case 2.1.1: MET')
                     return (
                         idx,
                         span["spanId"],
@@ -337,7 +333,7 @@ def find_spans(start_time, end_time, all_spans):
                     # Input: ----
                     # Spans:             ----
 
-                    # logging.info('Case 2.1.2: MET')
+                    # logger.info('Case 2.1.2: MET')
                     pass
 
             else:
@@ -349,7 +345,7 @@ def find_spans(start_time, end_time, all_spans):
                     # Spans:   ----
 
                     # Update Start Time
-                    # logging.info('Case 2.2.1: MET')
+                    # logger.info('Case 2.2.1: MET')
                     return (idx, span["spanId"], ("start_time", str_start_time))
 
                 else:
@@ -358,7 +354,7 @@ def find_spans(start_time, end_time, all_spans):
                     # Spans:   ----
 
                     # Update Start Time
-                    # logging.info('Case 2.2.2: MET')
+                    # logger.info('Case 2.2.2: MET')
                     return (
                         idx,
                         span["spanId"],
@@ -372,7 +368,7 @@ def find_spans(start_time, end_time, all_spans):
 
 
 def create_span(start_time, end_time):
-    logging.info("Creating new span")
+    logger.info("Creating new span")
 
     new_span_uuid = generate_uuid()
 
@@ -384,8 +380,8 @@ def create_span(start_time, end_time):
         "spanId": new_span_uuid,
     }
 
-    logging.info("Newly Created span : {}".format(new_span))
-    logging.info("Creating new span...Done")
+    logger.info("Newly Created span : {}".format(new_span))
+    logger.info("Creating new span...Done")
     # spans.append(new_span)
 
     return new_span
@@ -404,13 +400,13 @@ def update_span(spans, span_index, timestamps):
 
 
 def process_spans(all_spans, array_start_time, array_end_time):
-    logging.info("Process function start time : {}".format(array_start_time))
-    logging.info("Process function end time : {}".format(array_end_time))
+    logger.info("Process function start time : {}".format(array_start_time))
+    logger.info("Process function end time : {}".format(array_end_time))
 
     if len(all_spans) == 0:
         newly_created_span = create_span(array_start_time[0], array_end_time[0])
         all_spans.append(newly_created_span)
-        logging.warn("Creating span for first time ever: {}".format(all_spans))
+        logger.warn("Creating span for first time ever: {}".format(all_spans))
         return all_spans, newly_created_span["spanId"], True
 
     else:
@@ -422,7 +418,7 @@ def process_spans(all_spans, array_start_time, array_end_time):
         print(span_index, span_id, attrs_to_update)
 
         if span_index is None:
-            logging.warn("No span Index found, so creating a new span")
+            logger.warn("No span Index found, so creating a new span")
             newly_created_span = create_span(
                 array_start_time[0], array_end_time[0]
             )
@@ -430,23 +426,23 @@ def process_spans(all_spans, array_start_time, array_end_time):
             return all_spans, newly_created_span["spanId"], True
 
         elif (span_index is not None) and attrs_to_update == []:
-            logging.info(
+            logger.info(
                 "Span found. But data is already in the span. Not updating any time"
             )
             return all_spans, span_id, False
 
         elif (span_index is not None) and attrs_to_update != []:
-            logging.info("Found a span. Updating {}".format(attrs_to_update))
+            logger.info("Found a span. Updating {}".format(attrs_to_update))
             update_span(all_spans, span_index, attrs_to_update)
             return all_spans, span_id, True
 
         # # If a span has been found, an index will be returned
         # if span_index is not None and attrs_to_update != []:
 
-        # logging.info("Found Span: {}".format(span_id))
+        # logger.info("Found Span: {}".format(span_id))
 
         # for attr in attrs_to_update:
-        # logging.info("Update {} to {}".format(attr[0], attr[1]))
+        # logger.info("Update {} to {}".format(attr[0], attr[1]))
         # all_spans = update_span(all_spans, span_index, attrs_to_update)
 
         # return all_spans, span_index, True
@@ -460,7 +456,7 @@ def process_spans(all_spans, array_start_time, array_end_time):
 
         # return all_spans, newly_created_span, True
         # elif span_index is not None and attrs_to_update != []:
-        # logging.warn("Span is existing, but no values to update ")
+        # logger.warn("Span is existing, but no values to update ")
 
         # # infill
         # return all_spans, span_id, False
@@ -468,7 +464,7 @@ def process_spans(all_spans, array_start_time, array_end_time):
 
 def get_all_records_in_event2(event):
 
-    logging.info("Getting all the records from event")
+    logger.info("Getting all the records from event")
 
     all_records = []  # holds all records
     for rec in event["Records"]:
@@ -478,17 +474,17 @@ def get_all_records_in_event2(event):
         )
         all_records.append(decoded_rec)
 
-        logging.debug("Decoded record is : {}".format(decoded_rec))
-        logging.info("Len of decoded record is : {}".format(len(decoded_rec)))
+        logger.debug("Decoded record is : {}".format(decoded_rec))
+        logger.info("Len of decoded record is : {}".format(len(decoded_rec)))
 
-    logging.info("Getting all the records from event...Done")
+    logger.info("Getting all the records from event...Done")
 
     return all_records
 
 
 def get_all_records_in_event(event):
 
-    logging.info("Getting all the records from event")
+    logger.info("Getting all the records from event")
 
     all_records = []  # holds all records
     for rec in event["Records"]:
@@ -504,20 +500,20 @@ def get_all_records_in_event(event):
             "deviceId": decoded_rec["message"]["from"],
             "data": decoded_rec["message"]["payload"]["context"]["tracking"],
         }
-        all_records.append(data['data'])
+        all_records.append(data["data"])
         # all_records.append(decoded_rec)
 
-        logging.info("Decoded reCord is : \n{}".format(pformat(decoded_rec)))
-        logging.info("Len of decoded record is : {}".format(len(decoded_rec)))
+        logger.debug("Decoded reCord is : \n{}".format(pformat(decoded_rec)))
+        logger.info("Len of decoded record is : {}".format(len(decoded_rec)))
 
-    logging.info("Getting all the records from event...Done")
+    logger.info("Getting all the records from event...Done")
 
     return all_records
 
 
 def get_unique_device_ids_from_records(all_records):
 
-    logging.info("Finding unique device Ids from all records")
+    logger.info("Finding unique device Ids from all records")
 
     unique_deviceIds_list = list(
         set([rec[0]["deviceId"] for rec in all_records])
@@ -525,23 +521,23 @@ def get_unique_device_ids_from_records(all_records):
     unique_deviceIds_list = [
         {"deviceId": str(x)} for x in unique_deviceIds_list
     ]
-    logging.info("Unqiue device Ids : {}".format(unique_deviceIds_list))
+    logger.info("Unqiue device Ids : {}".format(unique_deviceIds_list))
 
-    logging.info("Finding unique device Ids from all records...Done")
+    logger.info("Finding unique device Ids from all records...Done")
 
     return unique_deviceIds_list
 
 
 def tag_data(rec, spanId):
-    logging.info("Tagging {} points ".format(len(rec)))
+    logger.info("Tagging {} points ".format(len(rec)))
 
     spanId = str(spanId)
 
     for r in rec:
-        logging.info("Record to tag : {}".format(r))
+        logger.info("Record to tag : {}".format(r))
         r["spanId"] = spanId
 
-    logging.info("Tagging...Done")
+    logger.info("Tagging...Done")
     return r
 
 
@@ -552,7 +548,7 @@ def convert_to_putItem_format(item):
 
 
 def update_modified_device_spans_in_dynamo(device_spans_dict):
-    logging.info("updating modified device spans in dynamo")
+    logger.info("updating modified device spans in dynamo")
 
     # modified_devices_span_dict = [
     # x for x in device_spans_dict if "modified" in x
@@ -568,7 +564,7 @@ def update_modified_device_spans_in_dynamo(device_spans_dict):
         m_dev["spans"] = json.dumps(m_dev["spans"])
         # del m_dev["modified"]
     pprint(modified_devices_span_dict)
-    logging.info(
+    logger.info(
         "Converting to json modified device spans : {}".format(
             modified_devices_span_dict
         )
@@ -580,7 +576,7 @@ def update_modified_device_spans_in_dynamo(device_spans_dict):
             convert_to_putItem_format(m)
         )
 
-    logging.info(
+    logger.info(
         "Serialized modified device spans : {}".format(
             serialized_modified_devices_span_dict
         )
@@ -593,15 +589,15 @@ def update_modified_device_spans_in_dynamo(device_spans_dict):
             RequestItems={env_vars["SpanDynamoDBTableName"]: c}
         )
 
-        logging.info(
+        logger.info(
             "Response from updating spans to daynamo ; {}".format(response)
         )
 
-    logging.info("updating modified device spans in dynamo...Done")
+    logger.info("updating modified device spans in dynamo...Done")
 
 
 def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
-    logging.info("updating modified device spans in dynamo using ODM")
+    logger.info("updating modified device spans in dynamo using ODM")
 
     # modified_devices_span_dict = [
     # x for x in device_spans_dict if "modified" in x
@@ -621,10 +617,10 @@ def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
 
         m_dev["spans"] = json.dumps(m_dev["spans"])
 
-    pprint(modified_devices_span_dict)
-    logging.info(
+    # pprint(modified_devices_span_dict)
+    logger.debug(
         "Converting to json modified device spans : {}".format(
-            modified_devices_span_dict
+            pformat(modified_devices_span_dict)
         )
     )
 
@@ -632,7 +628,11 @@ def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
     for x in modified_devices_span_dict:
         data_for_ODM = {"deviceId": x["deviceId"], "spans": x["spans"]}
         spans_dict_as_OMD_spanmodel.append(SpanModel(**data_for_ODM))
-    pprint(spans_dict_as_OMD_spanmodel)
+    logging.info(
+        "Spans to update as ODM Models : \n{}".format(
+            pformat(spans_dict_as_OMD_spanmodel)
+        )
+    )
 
     ddb.session.add_items(spans_dict_as_OMD_spanmodel)
     ddb.session.commit_items()
@@ -640,11 +640,11 @@ def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
     # sess.add_items(spans_dict_as_OMD_spanmodel)
     # sess.commit_items()
 
-    logging.info("updating modified device spans in dynamo using ODM...Done")
+    logger.info("updating modified device spans in dynamo using ODM...Done")
 
 
 def send_tagged_data_to_kinesis(tagged_data):
-    logging.info("Sending tagged data to kinesis")
+    logger.info("Sending tagged data to kinesis")
 
     # convert to kinesis record format!
     tagged_data_as_kinesis_record_format = []
@@ -652,7 +652,7 @@ def send_tagged_data_to_kinesis(tagged_data):
         tagged_data_as_kinesis_record_format.append(
             {"Data": json.dumps(t), "PartitionKey": str(t["spanId"])}
         )
-        logging.info(
+        logger.info(
             "Tagged data as kinesis format : {}".format(
                 tagged_data_as_kinesis_record_format
             )
@@ -666,22 +666,23 @@ def send_tagged_data_to_kinesis(tagged_data):
             Records=c,
             StreamName=env_vars["OutputKinesisStreamName"],
         )
-        logging.info(
+        logger.info(
             "Response from Outputing to Kinesis Stream : {}".format(response)
         )
 
-    logging.info("Sending tagged data to kinesis...Done")
+    logger.info("Sending tagged data to kinesis...Done")
 
 
 def handler(event, context):
-    logging.info("Starting handler")
+    logger.info("Starting handler")
 
-    logging.debug("Event is : {}".format(event))
+    logger.info("Event is : {}".format(event))
 
     ##############################
     # Get all records from event #
     ##############################
     all_records = get_all_records_in_event(event)
+    # print(all_records)
 
     ######################################
     # keep only valid values in a record #
@@ -694,8 +695,8 @@ def handler(event, context):
         else:
             all_valid_records.append(valid_rec)
 
-    logging.info("Len of Valid records are : {}".format(len(all_valid_records)))
-    logging.info("Valid records are : {}".format(all_valid_records))
+    logger.info("Len of Valid records are : {}".format(len(all_valid_records)))
+    logger.debug("Valid records are : {}".format(all_valid_records))
 
     if len(all_valid_records) == 0:
         return "No records are valid"
@@ -711,7 +712,7 @@ def handler(event, context):
     device_spans_dict = get_spans_for_devices_from_DAX_batch_usingODM(
         unique_deviceIds
     )
-    print(device_spans_dict)
+    # print(device_spans_dict)
 
     ################
     # Tagged data ##
@@ -720,10 +721,10 @@ def handler(event, context):
 
     # For each record, find the span
     for rec_index, rec in enumerate(all_valid_records):
-        logging.info("Processing record number : {}".format(rec_index))
+        logger.info("Processing record number : {}".format(rec_index))
 
         rec = format_data_pts_in_rec(rec)
-        logging.info("Current valid record is : {}".format(rec))
+        logger.debug("Current valid record is : {}".format(rec))
 
         current_rec_device_id = rec[0]["deviceId"]
         try:
@@ -733,10 +734,10 @@ def handler(event, context):
                     current_rec_device_id_spans = x["spans"]
 
         except Exception as e:
-            logging.error("Error is : {}".format(e))
+            logger.error("Error is : {}".format(e))
             current_rec_device_id_spans = []
 
-        logging.info(
+        logger.info(
             "Current deviceId : {} and spans are : \n{}".format(
                 current_rec_device_id, current_rec_device_id_spans
             )
@@ -750,7 +751,7 @@ def handler(event, context):
         dt_array_end_time = rec[-1]["timeStamp"]
         dt_array_start_time = rec[0]["timeStamp"]
 
-        logging.info(
+        logger.info(
             "Faulty times are : {}\t{}\t{}\t{}".format(
                 array_end_time,
                 array_start_time,
@@ -764,14 +765,12 @@ def handler(event, context):
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
         )
-        logging.info(
+        logger.info(
             "Things found after processing spans : {}\t{}\t{}".format(
                 all_spans, spanId_for_tagging, modified
             )
         )
-        logging.info(
-            "All spans after finding everything : {}".format(all_spans)
-        )
+        logger.info("All spans after finding everything : {}".format(all_spans))
 
         ###################################
         # update the global list of spans #
@@ -780,7 +779,7 @@ def handler(event, context):
             if device_spans_dict != []:
                 for i in device_spans_dict:
                     if i["deviceId"] == current_rec_device_id_spans:
-                        logging.info(
+                        logger.info(
                             "Found the span - updating their all span and adding modified tag"
                         )
                         i["spans"] = all_spans
@@ -794,9 +793,7 @@ def handler(event, context):
                     }
                 )
 
-        logging.info(
-            "modified Updated span dict : {}".format(device_spans_dict)
-        )
+        logger.info("modified Updated span dict : {}".format(device_spans_dict))
 
         ##############################################
         # Tag all valid points in the current record #
@@ -807,10 +804,10 @@ def handler(event, context):
             del r["timeStamp"]
             tagged_data.append(r)
 
-        logging.info(
+        logger.info(
             "Len All tagged data after tagging: {}".format(len(tagged_data))
         )
-        logging.info("All tagged data after tagging: {}".format(tagged_data))
+        logger.debug("All tagged data after tagging: {}".format(tagged_data))
 
     ###################################################
     # batch update the devices whose spans we updated #
@@ -822,8 +819,8 @@ def handler(event, context):
     #########################################
     # Writing tagged data to kinesis stream #
     #########################################
-    send_tagged_data_to_kinesis(tagged_data)
+    # send_tagged_data_to_kinesis(tagged_data)
 
-    logging.info("Starting...Done")
+    logger.info("Starting...Done")
 
     return "Succesful"
