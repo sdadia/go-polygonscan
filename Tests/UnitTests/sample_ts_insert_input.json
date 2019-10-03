@@ -1,0 +1,52 @@
+{
+  "Records": [
+    {
+      "kinesis": {
+        "kinesisSchemaVersion": "1.0",
+        "partitionKey": "123",
+        "sequenceNumber": "49600079896247604343708177022866424097953403987327713282",
+        "data": "eyJhY2MiOiAiMCIsICJpbyI6ICIwMDAwMDAwMCIsICJncHMiOiB7InN0YXR1cyI6ICIxIiwgIkdQU1RpbWUiOiAiMjAxOS0wNS0yMlQxMDo0NTowNVoiLCAibGF0IjogIjUzMTkuODI1ME4iLCAibG5nIjogIjYyMi4zNDIyMFciLCAiYWx0IjogIjQxLjAwIiwgImdlb2lkIjogIjU1LjAwIiwgInNwZWVkIjogIjAuMjgiLCAiY291cnNlIjogIjYzLjYwIn0sICJkZXZpY2VJZCI6ICI5YjU5ZmQzZS0xN2UwLTExZTktYWIxNC1kNjYzYmQ4NzMiLCAic3BhbklkIjogIjEyMyIsICJ0aW1lc3RhbXAiOiAiMjAxOS0wNS0yMiAxMDo0NTowNS4xNTQwMDAifQ==",
+        "approximateArrivalTimestamp": 1570115295.27
+      },
+      "eventSource": "aws:kinesis",
+      "eventVersion": "1.0",
+      "eventID": "shardId-000000000000:49600079896247604343708177022866424097953403987327713282",
+      "eventName": "aws:kinesis:record",
+      "invokeIdentityArn": "arn:aws:iam::444235434904:role/pvcam-LambdaKinesisRole-test",
+      "awsRegion": "us-east-1",
+      "eventSourceARN": "arn:aws:kinesis:us-east-1:444235434904:stream/pvcam-ProcessedTelematicsStream-test"
+    },
+    {
+      "kinesis": {
+        "kinesisSchemaVersion": "1.0",
+        "partitionKey": "123",
+        "sequenceNumber": "49600079896247604343708177022867633023773018616502419458",
+        "data": "eyJhY2MiOiAiMCIsICJpbyI6ICIwMDAwMDAwMCIsICJncHMiOiB7InN0YXR1cyI6ICIxIiwgIkdQU1RpbWUiOiAiMjAxOS0wNS0yMlQxMDo0NTowNloiLCAibGF0IjogIjUzMTkuODI1ME4iLCAibG5nIjogIjYyMi4zNDIxMFciLCAiYWx0IjogIjQxLjAwIiwgImdlb2lkIjogIjU1LjAwIiwgInNwZWVkIjogIjAuODMiLCAiY291cnNlIjogIjE0OC44NyJ9LCAiZGV2aWNlSWQiOiAiOWI1OWZkM2UtMTdlMC0xMWU5LWFiMTQtZDY2M2JkODczIiwgInNwYW5JZCI6ICIxMjMiLCAidGltZXN0YW1wIjogIjIwMTktMDUtMjIgMTA6NDU6MDYuMTU0MDAwIn0=",
+        "approximateArrivalTimestamp": 1570115295.27
+      },
+      "eventSource": "aws:kinesis",
+      "eventVersion": "1.0",
+      "eventID": "shardId-000000000000:49600079896247604343708177022867633023773018616502419458",
+      "eventName": "aws:kinesis:record",
+      "invokeIdentityArn": "arn:aws:iam::444235434904:role/pvcam-LambdaKinesisRole-test",
+      "awsRegion": "us-east-1",
+      "eventSourceARN": "arn:aws:kinesis:us-east-1:444235434904:stream/pvcam-ProcessedTelematicsStream-test"
+    },
+    {
+      "kinesis": {
+        "kinesisSchemaVersion": "1.0",
+        "partitionKey": "123",
+        "sequenceNumber": "49600079896247604343708177022868841949592633245677125634",
+        "data": "eyJhY2MiOiAiMCIsICJpbyI6ICIwMDAwMDAwMCIsICJncHMiOiB7InN0YXR1cyI6ICIxIiwgIkdQU1RpbWUiOiAiMjAxOS0wNS0yMlQxMDo0NTowN1oiLCAibGF0IjogIjUzMTkuODI0OU4iLCAibG5nIjogIjYyMi4zNDIwMFciLCAiYWx0IjogIjQxLjAwIiwgImdlb2lkIjogIjU1LjAwIiwgInNwZWVkIjogIjAuNTIiLCAiY291cnNlIjogIjEzNy43MSJ9LCAiZGV2aWNlSWQiOiAiOWI1OWZkM2UtMTdlMC0xMWU5LWFiMTQtZDY2M2JkODczIiwgInNwYW5JZCI6ICIxMjMiLCAidGltZXN0YW1wIjogIjIwMTktMDUtMjIgMTA6NDU6MDcuMTU0MDAwIn0=",
+        "approximateArrivalTimestamp": 1570115295.27
+      },
+      "eventSource": "aws:kinesis",
+      "eventVersion": "1.0",
+      "eventID": "shardId-000000000000:49600079896247604343708177022868841949592633245677125634",
+      "eventName": "aws:kinesis:record",
+      "invokeIdentityArn": "arn:aws:iam::444235434904:role/pvcam-LambdaKinesisRole-test",
+      "awsRegion": "us-east-1",
+      "eventSourceARN": "arn:aws:kinesis:us-east-1:444235434904:stream/pvcam-ProcessedTelematicsStream-test"
+    }
+  ]
+}
