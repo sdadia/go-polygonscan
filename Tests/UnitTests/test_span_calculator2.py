@@ -14,13 +14,15 @@ sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
-import os
 from Functions.CreateTimeseriesRecord.index import (
     handler,
     get_all_records_in_event,
     remove_invalid_trip_data,
     get_unique_device_ids_from_records,
     get_spans_for_devices_from_DAX_batch_usingODM,
+    process_spans,
+    generate_uuid,
+    DATETIME_FORMAT,
 )
 
 
@@ -99,11 +101,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             }
         ]
         logger.info("Testing handler")
-        # with open(".gcsample_span_calculation_input.json") as f:
-        # event = json.load(f)
-        # logger.debug("Event is : {}".format(event))
-        records = handler({}, None)
-        logger.info("Extracted records are :\n {}".format(pformat(records)))
+        handler({}, None)
 
         logger.info("Testing handler...Done")
 
@@ -559,6 +557,390 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             [{"deviceId": "123"}]
         )
         self.assertEqual(len(ans), 1)
+
+
+class TestProcessSpans(unittest.TestCase):
+    current_device_spans = {
+        "deviceId": "123",
+        "spans": [
+            {
+                "spanId": "1",
+                "start_time": datetime.datetime.strptime(
+                    "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
+                ),
+                "end_time": datetime.datetime.strptime(
+                    "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
+                ),
+            },
+            {
+                "spanId": "2",
+                "start_time": datetime.datetime.strptime(
+                    "2019-05-22T12:45:05.154000Z", DATETIME_FORMAT
+                ),
+                "end_time": datetime.datetime.strptime(
+                    "2019-05-22T12:50:15.154000Z", DATETIME_FORMAT
+                ),
+            },
+        ],
+    }
+
+    @mock.patch("Functions.CreateTimeseriesRecord.index.generate_uuid")
+    def test_process_spans_first_time_entry(self, mock_generate_uuid):
+        mock_generate_uuid.return_value = "1abc"
+        current_device_spans = []
+        array_start_time = "2019-05-22T10:45:05.154000Z"
+        dt_array_start_time = datetime.datetime.strptime(
+            array_start_time, DATETIME_FORMAT
+        )
+
+        array_end_time = "2019-05-22T10:45:15.154000Z"
+        dt_array_end_time = datetime.datetime.strptime(
+            array_end_time, DATETIME_FORMAT
+        )
+
+        all_spans, spanId_for_tagging, modified = process_spans(
+            current_device_spans,
+            (array_start_time, dt_array_start_time),
+            (array_end_time, dt_array_end_time),
+        )
+        # print(all_spans, spanId_for_tagging, modified)
+
+        self.assertEqual(modified, True)
+        self.assertEqual(all_spans[0]["start_time"], array_start_time)
+        self.assertEqual(all_spans[0]["end_time"], array_end_time)
+
+    def test_process_spans_inside(self):
+        """
+        Span     x----------------------x
+        Data              x----x
+        """
+
+        # current_device_spans = self.current_device_spans
+
+        current_device_spans = {
+            "deviceId": "123",
+            "spans": [
+                {
+                    "spanId": "1",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+                {
+                    "spanId": "2",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T12:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T12:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+            ],
+        }
+
+        array_start_time = "2019-05-22T10:45:08.154000Z"
+        dt_array_start_time = datetime.datetime.strptime(
+            array_start_time, DATETIME_FORMAT
+        )
+
+        array_end_time = "2019-05-22T10:45:15.154000Z"
+        dt_array_end_time = datetime.datetime.strptime(
+            array_end_time, DATETIME_FORMAT
+        )
+
+        all_spans, spanId_for_tagging, modified = process_spans(
+            current_device_spans["spans"],
+            (array_start_time, dt_array_start_time),
+            (array_end_time, dt_array_end_time),
+        )
+        # print(all_spans, spanId_for_tagging, modified)
+
+        self.assertEqual(modified, False)
+        self.assertEqual(
+            spanId_for_tagging, current_device_spans["spans"][0]["spanId"]
+        )
+        self.assertEqual(
+            all_spans[0]["start_time"],
+            current_device_spans["spans"][0]["start_time"],
+        )
+        self.assertEqual(
+            all_spans[0]["end_time"],
+            current_device_spans["spans"][0]["end_time"],
+        )
+
+    def test_process_spans_right_ovelap(self):
+        """
+        Span     x----------------------x
+        Data                         x----x
+        """
+        # current_device_spans = self.current_device_spans
+
+        current_device_spans = {
+            "deviceId": "123",
+            "spans": [
+                {
+                    "spanId": "1",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+                {
+                    "spanId": "2",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T12:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T12:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+            ],
+        }
+
+        array_start_time = "2019-05-22T10:43:08.154000Z"
+        dt_array_start_time = datetime.datetime.strptime(
+            array_start_time, DATETIME_FORMAT
+        )
+
+        array_end_time = "2019-05-22T10:55:15.154000Z"
+        dt_array_end_time = datetime.datetime.strptime(
+            array_end_time, DATETIME_FORMAT
+        )
+
+        all_spans, spanId_for_tagging, modified = process_spans(
+            current_device_spans["spans"],
+            (array_start_time, dt_array_start_time),
+            (array_end_time, dt_array_end_time),
+        )
+        # print(all_spans, spanId_for_tagging, modified)
+
+        self.assertEqual(modified, True)
+        self.assertEqual(
+            spanId_for_tagging, current_device_spans["spans"][0]["spanId"]
+        )
+        self.assertEqual(all_spans[0]["end_time"], array_end_time)
+
+    @mock.patch("Functions.CreateTimeseriesRecord.index.generate_uuid")
+    def test_process_spans_right_new_span(self, mock_generate_uuid):
+        """
+        Span     x----------------------x
+        Data                                  x----x
+        """
+
+        mock_generate_uuid.return_value = "1abc"
+        current_device_spans = {
+            "deviceId": "123",
+            "spans": [
+                {
+                    "spanId": "1",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+                {
+                    "spanId": "2",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T12:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T12:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+            ],
+        }
+
+        array_start_time = "2019-05-22T11:13:08.154000Z"
+        dt_array_start_time = datetime.datetime.strptime(
+            array_start_time, DATETIME_FORMAT
+        )
+
+        array_end_time = "2019-05-22T11:25:15.154000Z"
+        dt_array_end_time = datetime.datetime.strptime(
+            array_end_time, DATETIME_FORMAT
+        )
+
+        all_spans, spanId_for_tagging, modified = process_spans(
+            current_device_spans["spans"],
+            (array_start_time, dt_array_start_time),
+            (array_end_time, dt_array_end_time),
+        )
+        # print("{} {} {}".format(all_spans, spanId_for_tagging, modified))
+
+        self.assertEqual(modified, True)
+        self.assertEqual(len(all_spans), 3)
+        self.assertEqual(spanId_for_tagging, mock_generate_uuid.return_value)
+        self.assertEqual(all_spans[-1]["end_time"], array_end_time)
+        self.assertEqual(all_spans[-1]["start_time"], array_start_time)
+
+    @mock.patch("Functions.CreateTimeseriesRecord.index.generate_uuid")
+    def test_process_spans_left_new_span(self, mock_generate_uuid):
+        """
+        Span             x----------------------x
+        Data    x----x
+        """
+
+        mock_generate_uuid.return_value = "1abc"
+        current_device_spans = {
+            "deviceId": "123",
+            "spans": [
+                {
+                    "spanId": "1",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+                {
+                    "spanId": "2",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T12:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T12:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+            ],
+        }
+
+        array_start_time = "2019-05-22T09:13:08.154000Z"
+        dt_array_start_time = datetime.datetime.strptime(
+            array_start_time, DATETIME_FORMAT
+        )
+
+        array_end_time = "2019-05-22T09:25:15.154000Z"
+        dt_array_end_time = datetime.datetime.strptime(
+            array_end_time, DATETIME_FORMAT
+        )
+
+        all_spans, spanId_for_tagging, modified = process_spans(
+            current_device_spans["spans"],
+            (array_start_time, dt_array_start_time),
+            (array_end_time, dt_array_end_time),
+        )
+        # print("{} {} {}".format(all_spans, spanId_for_tagging, modified))
+
+        self.assertEqual(modified, True)
+        self.assertEqual(len(all_spans), 3)
+        self.assertEqual(spanId_for_tagging, mock_generate_uuid.return_value)
+        self.assertEqual(all_spans[-1]["end_time"], array_end_time)
+        self.assertEqual(all_spans[-1]["start_time"], array_start_time)
+
+    @unittest.SkipTest
+    def test_process_spans_left_ovelap(self):
+        """
+        Span        x----------------------x
+        Data     x----x
+        """
+        current_device_spans = {
+            "deviceId": "123",
+            "spans": [
+                {
+                    "spanId": "1",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+                {
+                    "spanId": "2",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T12:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T12:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+            ],
+        }
+
+        array_start_time = "2019-05-22T10:43:08.154000Z"
+        dt_array_start_time = datetime.datetime.strptime(
+            array_start_time, DATETIME_FORMAT
+        )
+
+        array_end_time = "2019-05-22T10:47:15.154000Z"
+        dt_array_end_time = datetime.datetime.strptime(
+            array_end_time, DATETIME_FORMAT
+        )
+
+        all_spans, spanId_for_tagging, modified = process_spans(
+            current_device_spans["spans"],
+            (array_start_time, dt_array_start_time),
+            (array_end_time, dt_array_end_time),
+        )
+        print(all_spans, spanId_for_tagging, modified)
+
+        # self.assertEqual(modified, True)
+        # self.assertEqual(
+        # spanId_for_tagging, "2"
+        # )
+        # self.assertEqual(all_spans[1]["start_time"], array_start_time)
+
+    def test_process_spans_bigger(self):
+        """
+        Data              x----x
+        Span     x----------------------x
+        """
+
+        current_device_spans = {
+            "deviceId": "123",
+            "spans": [
+                {
+                    "spanId": "1",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+                {
+                    "spanId": "2",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T12:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T12:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+            ],
+        }
+
+        array_start_time = "2019-05-22T10:30:08.154000Z"
+        dt_array_start_time = datetime.datetime.strptime(
+            array_start_time, DATETIME_FORMAT
+        )
+
+        array_end_time = "2019-05-22T10:54:15.154000Z"
+        dt_array_end_time = datetime.datetime.strptime(
+            array_end_time, DATETIME_FORMAT
+        )
+
+        all_spans, spanId_for_tagging, modified = process_spans(
+            current_device_spans["spans"],
+            (array_start_time, dt_array_start_time),
+            (array_end_time, dt_array_end_time),
+        )
+        print(all_spans, spanId_for_tagging, modified)
+
+        self.assertEqual(modified, True)
+        self.assertEqual(
+            spanId_for_tagging, current_device_spans["spans"][0]["spanId"]
+        )
+        self.assertEqual(all_spans[0]["start_time"], array_start_time)
+        self.assertEqual(all_spans[0]["end_time"], array_end_time)
 
 
 def suite():

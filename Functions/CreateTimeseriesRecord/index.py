@@ -29,11 +29,12 @@ if root.handlers:
     for handler in root.handlers:
         root.removeHandler(handler)
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.ERROR,
     format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("index")
+logger.setLevel(logging.ERROR)
 
 ######################################################
 ##                                                  ##
@@ -63,14 +64,14 @@ ddb.connect()
 
 
 if "DAXUrl" in env_vars:
-    logger.warn("Using Dynamo with DAX")
+    logger.warning("Using Dynamo with DAX")
     session = botocore.session.get_session()
     dax = amazondax.AmazonDaxClient(
         session, region_name="us-east-1", endpoints=[env_vars["DAXUrl"]]
     )
     dynamo_client = dax
 else:
-    logger.warn("Using Dynamo without DAX")
+    logger.warning("Using Dynamo without DAX")
     dynamo_client = boto3.client("dynamodb")
 
 kinesis_client = boto3.client("kinesis")
@@ -117,6 +118,12 @@ def get_spans_for_devices_from_DAX_batch_usingODM(device_ids):
         x["spans"] = json.loads(x["spans"])
         x["spans"] = format_spans(x["spans"])
         x["spans"] = sort_data_by_date(x["spans"], "end_time")
+
+    logger.info(
+        "Response spans from after formatting: {}".format(
+            response
+        )
+    )
 
     logger.info(
         "Getting Spans data for specific device from DAX using ODM...Done"
@@ -308,7 +315,7 @@ def find_spans(start_time, end_time, all_spans):
         # logger.info('Checking Span: {}'.format(span['spanId']))
         # logger.info(span['start_time'])
         # logger.info(span['end_time'])
-        print("span finding logic - {}".format(span))
+        # print("span finding logic - {}".format(span))
         span_start = span["start_time"]
         span_end = span["end_time"]
 
@@ -452,14 +459,16 @@ def update_span(spans, span_index, timestamps):
 def process_spans(all_spans, array_start_time, array_end_time):
     logger.info("Process function start time : {}".format(array_start_time))
     logger.info("Process function end time : {}".format(array_end_time))
+    # logger.info("all spans provided are : {}".format(all_spans))
 
     if len(all_spans) == 0:
         newly_created_span = create_span(array_start_time[0], array_end_time[0])
         all_spans.append(newly_created_span)
-        logger.warn("Creating span for first time ever: {}".format(all_spans))
+        logger.warning("Creating span for first time ever: {}".format(all_spans))
         return all_spans, newly_created_span["spanId"], True
 
     else:
+
         # Parse Device Spans for Appropriate Spans to Update
         span_index, span_id, attrs_to_update = find_spans(
             array_start_time, array_end_time, all_spans
@@ -468,7 +477,7 @@ def process_spans(all_spans, array_start_time, array_end_time):
         print(span_index, span_id, attrs_to_update)
 
         if span_index is None:
-            logger.warn("No span Index found, so creating a new span")
+            logger.warning("No span Index found, so creating a new span")
             newly_created_span = create_span(
                 array_start_time[0], array_end_time[0]
             )
