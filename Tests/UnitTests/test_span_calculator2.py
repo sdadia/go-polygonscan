@@ -6,6 +6,8 @@ import sys
 import unittest
 from pprint import pformat
 
+logging.getLogger("index").setLevel(logging.INFO)
+
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
@@ -15,7 +17,9 @@ from Functions.CreateTimeseriesRecord.index import (
     handler,
     get_all_records_in_event,
     remove_invalid_trip_data,
+    get_unique_device_ids_from_records,
 )
+
 
 logger = logging.getLogger("test_span_calculator2")
 logger.setLevel(logging.INFO)
@@ -33,7 +37,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
     @mock.patch(
         "Functions.CreateTimeseriesRecord.index.get_all_records_in_event"
     )
-    def test_handler(
+    def test_handler_mock(
         self,
         mock_get_all_records_in_event,
         mock_get_spans_for_devices_from_DAX_batch_usingODM,
@@ -422,6 +426,104 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         valid_data = remove_invalid_trip_data(data)
         self.assertEqual(len(valid_data), 0)
         logging.info("Testing remove_invalid_trip_data...Done")
+
+    @unittest.SkipTest
+    def test_handler2(self):
+        print("xxxxxxxxx")
+        with open("./sample_span_calculation_input.json") as f:
+            event = json.load(f)
+        handler(event, None)
+
+    def test_get_unique_device_ids_from_records(self):
+        logging.info("Testing get_unique_device_ids_from_records")
+        all_records = [
+            [
+                {
+                    "acc": "0",
+                    "deviceId": "1",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:14Z",
+                        "alt": "41.10",
+                        "course": "326.74",
+                        "geoid": "55.00",
+                        "lat": "5319.8246N",
+                        "lng": "622.34160W",
+                        "speed": "0.98",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:14.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "2",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:14Z",
+                        "alt": "41.10",
+                        "course": "326.74",
+                        "geoid": "55.00",
+                        "lat": "10.0",
+                        "lng": "10.0",
+                        "speed": "10.0",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:14.154Z",
+                },
+            ]
+        ]
+
+        ans = get_unique_device_ids_from_records(all_records)
+        self.assertEqual(type(ans), list)
+        for r in ans:
+            self.assertTrue(r["deviceId"] in ["1", "2"])
+        logging.info("Testing get_unique_device_ids_from_records...Done")
+
+    def test_get_unique_device_ids_from_records_single_unique(self):
+        logging.info("Testing get_unique_device_ids_from_records")
+        all_records = [
+            [
+                {
+                    "acc": "0",
+                    "deviceId": "1",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:14Z",
+                        "alt": "41.10",
+                        "course": "326.74",
+                        "geoid": "55.00",
+                        "lat": "5319.8246N",
+                        "lng": "622.34160W",
+                        "speed": "0.98",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:14.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "1",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:14Z",
+                        "alt": "41.10",
+                        "course": "326.74",
+                        "geoid": "55.00",
+                        "lat": "10.0",
+                        "lng": "10.0",
+                        "speed": "10.0",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:14.154Z",
+                },
+            ]
+        ]
+
+        ans = get_unique_device_ids_from_records(all_records)
+        self.assertEqual(type(ans), list)
+        self.assertEqual(len(ans), 1)
+        for r in ans:
+            self.assertTrue(r["deviceId"] in ["1"])
+        logging.info("Testing get_unique_device_ids_from_records...Done")
 
 
 def suite():
