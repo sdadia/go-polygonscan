@@ -51,7 +51,7 @@ def extract_data_from_kinesis(event):
         del data["gps"]
         all_records.append(data)
 
-    logging.debug("All records : \n{}".format(pformat(all_records)))
+    logging.debug("Extracted records are : \n{}".format(pformat(all_records)))
 
     logging.info("Extracting data from Kinesis...Done")
 
@@ -66,17 +66,19 @@ def chunks(l, n=25):
 
 
 def put_data_into_TS_dynamo_modelB(data):
+
+    # convert the data into TS model
     data_as_ODM_model = []
     for d in data:
         d2 = {
             "did_date_measure": d["deviceId"]
             + "_"
-            + d["timestamp"].split()[0]
+            + d["timeStamp"].split()[0]
             + "_"
             + "speed",
             "tstime": time.mktime(
                 datetime.datetime.strptime(
-                    d["timestamp"], DATETIME_FORMAT
+                    d["timeStamp"], DATETIME_FORMAT
                 ).timetuple()
             ),
             "span_id": d["spanId"],
@@ -87,49 +89,37 @@ def put_data_into_TS_dynamo_modelB(data):
         d2 = {
             "did_date_measure": d["deviceId"]
             + "_"
-            + d["timestamp"].split()[0]
+            + d["timeStamp"].split()[0]
             + "_"
             + "latitude",
             "tstime": time.mktime(
                 datetime.datetime.strptime(
-                    d["timestamp"], DATETIME_FORMAT
+                    d["timeStamp"], DATETIME_FORMAT
                 ).timetuple()
             ),
             "span_id": d["spanId"],
-            "value": str(d["latitude"]),
+            "value": str(d["lat"]),
         }
         data_as_ODM_model.append(TSModelB(**d2))
 
         d2 = {
             "did_date_measure": d["deviceId"]
             + "_"
-            + d["timestamp"].split()[0]
+            + d["timeStamp"].split()[0]
             + "_"
             + "longitude",
             "tstime": time.mktime(
                 datetime.datetime.strptime(
-                    d["timestamp"], DATETIME_FORMAT
+                    d["timeStamp"], DATETIME_FORMAT
                 ).timetuple()
             ),
             "span_id": d["spanId"],
-            "value": str(d["longitude"]),
+            "value": str(d["lng"]),
         }
         data_as_ODM_model.append(TSModelB(**d2))
 
     ddb.session.add_items(data_as_ODM_model)
     ddb.session.commit_items()
-
-    #     if len(data_as_ODM_model) % 25 == 0:
-    #         print('commiting items')
-    #         sess.add_items(data_as_ODM_model)
-    #         sess.commit_items()
-    #         data_as_ODM_model = []
-    # import pprint; pprint.pprint(data_as_ODM_model)
-
-    # # sess.add_items(data_as_ODM_model)
-    # # sess.commit_items()
-    # ddb.session.add_items(data_as_ODM_model)
-    # ddb.session.commit_items()
 
 
 def handler(event, context):
