@@ -27,9 +27,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[
-        logging.StreamHandler()
-    ]
+    handlers=[logging.StreamHandler()],
 )
 
 logger = logging.getLogger("speed_log")
@@ -120,9 +118,9 @@ def get_metric_data_from_dynamo_batch_from_ODM_table_read(
     return aggregate_values_from_dynamo
 
 
-DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
-DATETIME_FORMAT2 = "%Y-%m-%dT%H:%M:%S.%f%z"
-
+# DATETIME_FORMAT = "%Y-%m%d %H:%M:%S"
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+DATETIME_FORMAT2 = "%Y-%m-%d %H:%M:%S.%f"
 
 
 # Create a function called "chunks" with two arguments, l and n:
@@ -266,17 +264,15 @@ def extract_data_from_kinesis(event):
 def find_unique_span_timestamp(extracted_data):
     """
     Extracted unique span and timestamps
+
+    Returns
+    -------
+    List of tuples [('1234', '2019-05-22 10:45:07.154000'),
+                    ('1234', 2019-05-22 10:47:07.154000)]
     """
     # floor the timestamp to the minute
     all_data = []
     for x in extracted_data:
-        x["timestamp"] = datetime.datetime.strftime(
-            datetime.datetime.strptime(x["timestamp"], DATETIME_FORMAT)
-            .replace(tzinfo=datetime.timezone.utc)
-            .replace(second=0),
-            DATETIME_FORMAT,
-        )
-        #
         all_data.append((x["spanId"], x["timestamp"]))
 
     logging.debug(
