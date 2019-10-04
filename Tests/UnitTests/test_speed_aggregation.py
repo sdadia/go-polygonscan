@@ -123,39 +123,39 @@ class Test_speed_aggregation(unittest.TestCase):
 
     def test_format_event_data(self):
         input_data = [
-            {"spanId": "123", "timestamp": "2019-09-04 00:25:21", "speed": 120},
-            {"spanId": "123", "timestamp": "2019-09-04 00:25:31", "speed": 160},
-            {"spanId": "122", "timestamp": "2019-09-04 00:25:41", "speed": 280},
+            {"spanId": "123", "timestamp": "2019-05-22 10:46:07.154000", "speed": 120},
+            {"spanId": "123", "timestamp": "2019-05-22 10:45:07.154000", "speed": 160},
+            {"spanId": "122", "timestamp": "2019-05-22 10:45:07.154000", "speed": 280},
         ]
 
         expected_output = [
             {
-                "timestamp": "2019-09-04 00:25:00+00:00",
+                "timestamp": "2019-05-22 10:46:07.154000+00:00",
                 "spanId_metricname": "123_speed",
                 "speed": 120.0,
                 "count": 1.0,
             },
             {
-                "timestamp": "2019-09-04 00:25:00+00:00",
+                "timestamp": "2019-05-22 10:45:07.154000+00:00",
                 "spanId_metricname": "123_speed",
                 "speed": 160.0,
                 "count": 1.0,
             },
             {
-                "timestamp": "2019-09-04 00:25:00+00:00",
+                "timestamp": "2019-05-22 10:45:07.154000+00:00",
                 "spanId_metricname": "122_speed",
                 "speed": 280.0,
                 "count": 1.0,
             },
         ]
         event_df = format_event_data(input_data)
+        print(event_df)
 
         for e1, e2 in zip(
             expected_output, list(event_df.to_dict(orient="index").values())
         ):
             # print(e1, e2)
             self.assertCountEqual(e1, e2)
-
 
 def suite():
     suite = unittest.TestSuite()
