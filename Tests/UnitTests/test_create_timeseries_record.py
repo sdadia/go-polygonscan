@@ -879,13 +879,11 @@ class TestProcessSpans(unittest.TestCase):
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
         )
-        # print(all_spans, spanId_for_tagging, modified)
+        print(all_spans, spanId_for_tagging, modified)
 
         self.assertEqual(modified, True)
-        # self.assertEqual(
-        # spanId_for_tagging, "2"
-        # )
-        # self.assertEqual(all_spans[1]["start_time"], array_start_time)
+        self.assertEqual(spanId_for_tagging, "1")
+        self.assertEqual(all_spans[0]["start_time"], array_start_time)
 
     def test_process_spans_bigger(self):
         """
