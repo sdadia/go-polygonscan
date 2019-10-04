@@ -6,10 +6,10 @@ import unittest
 import json
 from pprint import pprint, pformat
 
-logging.getLogger("speed_log").setLevel(logging.INFO)
+logging.getLogger("speed_log").setLevel(logging.ERROR)
 
 log = logging.getLogger("test_speed_logger")
-log.setLevel(logging.INFO)
+log.setLevel(logging.ERROR)
 
 
 # this contains the code for trip calculation

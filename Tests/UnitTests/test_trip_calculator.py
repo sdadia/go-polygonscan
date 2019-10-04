@@ -23,7 +23,6 @@ from Functions.CalculateTrips.index import (
 
 # mock environment variables
 class Test_trip_calculator_pandas(unittest.TestCase):
-
     data = [
         {
             "spanId": "-1",
@@ -204,7 +203,7 @@ class Test_trip_calculator_pandas(unittest.TestCase):
     def test_handler(self):
         from Functions.CalculateTrips.index import handler
 
-        with open("./sample_trip_calculation_input.json") as f:
+        with open("sample_trip_calculation_input.json") as f:
             event = json.load(f)
 
         trips = handler(event, None)

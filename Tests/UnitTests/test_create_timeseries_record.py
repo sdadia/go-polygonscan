@@ -10,7 +10,7 @@ from pvapps_odm.Schema.models import SpanModel
 
 os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
 
-logging.getLogger("index").setLevel(logging.INFO)
+logging.getLogger("index").setLevel(logging.ERROR)
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,11 +29,10 @@ from Functions.CreateTimeseriesRecord.index import (
 
 
 logger = logging.getLogger("test_span_calculator2")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR)
 
 import os
 import mock
-
 
 
 class TestCreateTimeSeriesRecord(unittest.TestCase):
@@ -108,7 +107,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
 
     def test_get_all_records_in_event(self):
         logging.info("Testing get_all_records_in_event function")
-        with open("./sample_span_calculation_input.json") as f:
+        with open("sample_span_calculation_input.json") as f:
             event = json.load(f)
         logger.debug("Event is : {}".format(event))
         all_records = get_all_records_in_event(event)
@@ -431,7 +430,6 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
 
     # @unittest.SkipTest
     def test_handler2(self):
-        print("xxxxxxxxx")
         with open("sample_span_calculation_input.json") as f:
             event = json.load(f)
         handler(event, None)
@@ -718,7 +716,7 @@ class TestProcessSpans(unittest.TestCase):
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
         )
-        print(all_spans, spanId_for_tagging, modified)
+        # print(all_spans, spanId_for_tagging, modified)
 
         self.assertEqual(modified, True)
         self.assertEqual(
@@ -881,7 +879,7 @@ class TestProcessSpans(unittest.TestCase):
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
         )
-        print(all_spans, spanId_for_tagging, modified)
+        # print(all_spans, spanId_for_tagging, modified)
 
         self.assertEqual(modified, True)
         # self.assertEqual(
@@ -934,7 +932,7 @@ class TestProcessSpans(unittest.TestCase):
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
         )
-        print(all_spans, spanId_for_tagging, modified)
+        # print(all_spans, spanId_for_tagging, modified)
 
         self.assertEqual(modified, True)
         self.assertEqual(
