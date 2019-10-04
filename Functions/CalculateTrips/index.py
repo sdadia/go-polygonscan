@@ -158,13 +158,15 @@ def get_trips_pandas(
     df[["start_time_", "end_time_"]] = df[["start_time", "end_time"]].apply(
         pd.to_datetime
     )
-    # print(df)
+    user_end_time = pd.to_datetime(user_end_time).tz_localize("UTC")
+    user_start_time = pd.to_datetime(user_start_time).tz_localize("UTC")
 
     # keep the data only between user specified start and end_time
     df = df[
-        (df["start_time_"] > user_start_time)
-        & (df["end_time_"] < user_end_time)
+        (df["start_time_"] >= user_start_time)
+        & (df["end_time_"] <= user_end_time)
     ]
+    # print(df)
 
     df.sort_values(by="start_time_", ascending=True, inplace=True)
     # print(df)
@@ -335,7 +337,7 @@ def get_speed_data_from_dynamo(spanIds):
 
 
 def aggregate_speed_for_trip(spanIds):
-    print(spanIds)
+    # print(spanIds)
 
     all_data = []
     for sp in spanIds:
@@ -344,16 +346,16 @@ def aggregate_speed_for_trip(spanIds):
         all_data.extend(response)
 
     speed_data = [x.attribute_values for x in all_data]
-    pprint(all_data)
+    # pprint(all_data)
 
     if len(speed_data) == 0:
-        return {"avg_speed": -1}
+        return {"avg_speed": round(-1)}
     else:
         df = pd.DataFrame(speed_data)
         df["speed_mul_count"] = df["value"] * df["count"]
         avg_speed = df["speed_mul_count"].sum() / df["count"].sum()
         avg_speed = float(avg_speed)
-        return {"avg_speed": float(avg_speed)}
+        return {"avg_speed": round(avg_speed, 2)}
 
 
 def aggregate_speed_for_trip2(spanIds):
@@ -419,6 +421,6 @@ def handler(event, context):
 
     trips = {"trips": list(trips.values())}
 
-    pprint(trips)
+    # pprint(trips)
 
     return json.dumps(trips)
