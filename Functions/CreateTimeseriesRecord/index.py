@@ -33,7 +33,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("index")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR)
 
 ######################################################
 ##                                                  ##
@@ -118,11 +118,7 @@ def get_spans_for_devices_from_DAX_batch_usingODM(device_ids):
         x["spans"] = format_spans(x["spans"])
         x["spans"] = sort_data_by_date(x["spans"], "end_time")
 
-    logger.info(
-        "Response spans from after formatting: {}".format(
-            response
-        )
-    )
+    logger.info("Response spans from after formatting: {}".format(response))
 
     logger.info(
         "Getting Spans data for specific device from DAX using ODM...Done"
@@ -403,7 +399,11 @@ def find_spans(start_time, end_time, all_spans):
                     # Update Start Time
                     # logger.info('Case 2.2.1: MET')
                     # print(idx, span["spanId"], [("start_time", str_start_time))
-                    return (idx, span["spanId"], [("start_time", str_start_time)])
+                    return (
+                        idx,
+                        span["spanId"],
+                        [("start_time", str_start_time)],
+                    )
 
                 else:
                     # Case 2.2.2 - Covering:
@@ -445,21 +445,15 @@ def create_span(start_time, end_time):
 
 
 def update_span(spans, span_index, timestamps):
-    print("****")
-    print(spans, span_index, timestamps)
-    time
+    # print("****")
+    # print(spans, span_index, timestamps)
+    # time
     format2 = "%Y-%m-%dT%H:%M:%SZ"
 
     if span_index is not None:
         print(timestamps)
         for t in timestamps:
-            print(t)
-            print(spans[span_index], spans[span_index][t[0]])
-            print("here")
             spans[span_index][t[0]] = t[1]
-            print("here1")
-            print(spans[span_index])
-    print("****")
 
     return spans
 
@@ -472,7 +466,9 @@ def process_spans(all_spans, array_start_time, array_end_time):
     if len(all_spans) == 0:
         newly_created_span = create_span(array_start_time[0], array_end_time[0])
         all_spans.append(newly_created_span)
-        logger.warning("Creating span for first time ever: {}".format(all_spans))
+        logger.warning(
+            "Creating span for first time ever: {}".format(all_spans)
+        )
         return all_spans, newly_created_span["spanId"], True
 
     else:
@@ -564,7 +560,7 @@ def get_all_records_in_event(event):
             d["deviceId"] = decoded_rec["message"]["from"]
 
         data = {
-            "deviceId": decoded_rec["message"]["from"],
+            "deviceId": decoded_rec["deviceId"],
             "data": decoded_rec["message"]["payload"]["context"]["tracking"],
         }
         all_records.append(data["data"])
@@ -630,7 +626,7 @@ def update_modified_device_spans_in_dynamo(device_spans_dict):
 
         m_dev["spans"] = json.dumps(m_dev["spans"])
         # del m_dev["modified"]
-    pprint(modified_devices_span_dict)
+    # pprint(modified_devices_span_dict)
     logger.info(
         "Converting to json modified device spans : {}".format(
             modified_devices_span_dict
@@ -711,7 +707,7 @@ def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
 
 
 def send_tagged_data_to_kinesis(tagged_data):
-    logger.info("Sending tagged data to kinesis")
+    logger.debug("Sending tagged data to kinesis")
 
     # convert to kinesis record format!
     tagged_data_as_kinesis_record_format = []
@@ -719,7 +715,7 @@ def send_tagged_data_to_kinesis(tagged_data):
         tagged_data_as_kinesis_record_format.append(
             {"Data": json.dumps(t), "PartitionKey": str(t["spanId"])}
         )
-        logger.info(
+        logger.debug(
             "Tagged data as kinesis format : {}".format(
                 tagged_data_as_kinesis_record_format
             )
@@ -734,7 +730,9 @@ def send_tagged_data_to_kinesis(tagged_data):
             StreamName=env_vars["OutputKinesisStreamName"],
         )
         logger.info(
-            "Response from Outputing to Kinesis Stream : {}".format(response)
+            "Response from Outputing to Kinesis Stream : {}".format(
+                pformat(response["ResponseMetadata"]["HTTPStatusCode"])
+            )
         )
 
     logger.info("Sending tagged data to kinesis...Done")
