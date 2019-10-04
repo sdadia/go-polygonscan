@@ -121,6 +121,7 @@ def get_metric_data_from_dynamo_batch_from_ODM_table_read(
 # DATETIME_FORMAT = "%Y-%m%d %H:%M:%S"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 DATETIME_FORMAT2 = "%Y-%m-%d %H:%M:%S.%f"
+DATETIME_FORMAT3 = "%Y-%m-%d %H:%M:%S"
 
 
 # Create a function called "chunks" with two arguments, l and n:
@@ -251,7 +252,7 @@ def extract_data_from_kinesis(event):
         data = json.loads(data)
         data = {**data, **data["gps"]}
         del data["gps"]
-        print(data)
+        # print(data)
         all_records.append(data)
 
     logging.debug("All records : {}".format((all_records)))
@@ -289,7 +290,7 @@ def find_unique_span_timestamp(extracted_data):
     return unique_span_timestamps
 
 
-def update_data_in_dynamo_using_ODM(aggregate_values):
+def update_data_in_dynamo_using_ODM(aggregate_values_as_list):
     """
     Converts the aggregate values to DynamoDB's client PutItemRequest format for
     sending data in batches.
@@ -298,9 +299,6 @@ def update_data_in_dynamo_using_ODM(aggregate_values):
     logger.info("Updating aggregate tables using ODM")
 
     # convert all types to string - as float is not convertible to DynamoDB Type
-    aggregate_values_as_list = list(
-        (aggregate_values.to_dict(orient="index")).values()
-    )
     # print(aggregate_values_as_list)
     data_as_ODM_model = []
     for x in aggregate_values_as_list:
@@ -308,7 +306,9 @@ def update_data_in_dynamo_using_ODM(aggregate_values):
         d2 = {
             "spanId_metricname": x["spanId_metricname"],
             "timestamp": datetime.datetime.strptime(
-                x["timestamp"], "%Y-%m-%d %H:%M:%S+00:00"
+                x["timestamp"], DATETIME_FORMAT3
+            ).replace(
+                second=0, microsecond=0
             ),  # convert to datetime for storing in dynamo
             "value": x["speed"],
             "count": x["count"],
@@ -323,7 +323,7 @@ def update_data_in_dynamo_using_ODM(aggregate_values):
 
     logger.info("Updating aggregate tables using ODM...Done")
 
-    return "Done"
+    return data_as_ODM_model
 
 
 def handler(event, context):
@@ -384,6 +384,9 @@ def handler(event, context):
     #######################################
     # Update these new values in dynamoDB #
     #######################################
-    update_data_in_dynamo_using_ODM(aggregate_values)
+    aggregate_values_as_list = list(
+        (aggregate_values.to_dict(orient="index")).values()
+    )
+    update_data_in_dynamo_using_ODM(aggregate_values_as_list)
 
     return "Done updating speed"
