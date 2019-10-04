@@ -65,20 +65,41 @@ def chunks(l, n=25):
         yield l[i : i + n]
 
 
+def convert_data_to_TSModelB(data, metric_name):
+
+    # convert the data into TS model
+    d2 = {
+        "did_date_measure": data["deviceId"]
+        + "_"
+        + data["timestamp"].split()[0]
+        + "_"
+        + str(metric_name),
+        "tstime": datetime.datetime.strptime(
+            data["timestamp"], DATETIME_FORMAT
+        ).timestamp(),
+        "span_id": data["spanId"],
+        "value": str(data[metric_name]),
+    }
+
+    return TSModelB(**d2)
+
+
 def put_data_into_TS_dynamo_modelB(data):
+    logging.info('Data for conversion : \n{}'.format(pformat(data)))
 
     # convert the data into TS model
     data_as_ODM_model = []
     for d in data:
+        print(d)
         d2 = {
             "did_date_measure": d["deviceId"]
             + "_"
-            + d["timeStamp"].split()[0]
+            + d["timestamp"].split()[0]
             + "_"
             + "speed",
             "tstime": time.mktime(
                 datetime.datetime.strptime(
-                    d["timeStamp"], DATETIME_FORMAT
+                    d["timestamp"], DATETIME_FORMAT
                 ).timetuple()
             ),
             "span_id": d["spanId"],
@@ -89,12 +110,12 @@ def put_data_into_TS_dynamo_modelB(data):
         d2 = {
             "did_date_measure": d["deviceId"]
             + "_"
-            + d["timeStamp"].split()[0]
+            + d["timestamp"].split()[0]
             + "_"
             + "latitude",
             "tstime": time.mktime(
                 datetime.datetime.strptime(
-                    d["timeStamp"], DATETIME_FORMAT
+                    d["timestamp"], DATETIME_FORMAT
                 ).timetuple()
             ),
             "span_id": d["spanId"],
@@ -105,12 +126,12 @@ def put_data_into_TS_dynamo_modelB(data):
         d2 = {
             "did_date_measure": d["deviceId"]
             + "_"
-            + d["timeStamp"].split()[0]
+            + d["timestamp"].split()[0]
             + "_"
             + "longitude",
             "tstime": time.mktime(
                 datetime.datetime.strptime(
-                    d["timeStamp"], DATETIME_FORMAT
+                    d["timestamp"], DATETIME_FORMAT
                 ).timetuple()
             ),
             "span_id": d["spanId"],
@@ -120,6 +141,8 @@ def put_data_into_TS_dynamo_modelB(data):
 
     ddb.session.add_items(data_as_ODM_model)
     ddb.session.commit_items()
+
+    return data_as_ODM_model
 
 
 def handler(event, context):

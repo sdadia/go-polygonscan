@@ -9,7 +9,7 @@ from pprint import pformat, pprint
 from pvapps_odm.Schema.models import TSModelB
 
 
-logging.getLogger("index").setLevel(logging.INFO)
+logging.getLogger("index").setLevel(logging.DEBUG)
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,6 +18,7 @@ sys.path.append(
 from Functions.BatchInsertTSRecords.index import (
     handler,
     extract_data_from_kinesis,
+    put_data_into_TS_dynamo_modelB,
 )
 
 
@@ -90,6 +91,64 @@ class TestBatchTSInsert(unittest.TestCase):
 
         for e1, e2 in zip(extracted_data, expected_extracted_data):
             self.assertEqual(e1, e2)
+
+    # def test_put_data_into_TS_dynamo_modelB(self):
+    # data = [
+    # {
+    # "GPSTime": "2019-05-22T10:45:05Z",
+    # "acc": "0",
+    # "alt": "41.00",
+    # "course": "63.60",
+    # "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+    # "geoid": "55.00",
+    # "io": "00000000",
+    # "lat": "5319.8250N",
+    # "lng": "622.34220W",
+    # "spanId": "123",
+    # "speed": "0.28",
+    # "status": "1",
+    # "timestamp": "2019-05-22 10:45:05.154000",
+    # },
+    # {
+    # "GPSTime": "2019-05-22T10:45:06Z",
+    # "acc": "0",
+    # "alt": "41.00",
+    # "course": "148.87",
+    # "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+    # "geoid": "55.00",
+    # "io": "00000000",
+    # "lat": "5319.8250N",
+    # "lng": "622.34210W",
+    # "spanId": "123",
+    # "speed": "0.83",
+    # "status": "1",
+    # "timestamp": "2019-05-22 10:45:06.154000",
+    # },
+    # {
+    # "GPSTime": "2019-05-22T10:45:07Z",
+    # "acc": "0",
+    # "alt": "41.00",
+    # "course": "137.71",
+    # "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+    # "geoid": "55.00",
+    # "io": "00000000",
+    # "lat": "5319.8249N",
+    # "lng": "622.34200W",
+    # "spanId": "123",
+    # "speed": "0.52",
+    # "status": "1",
+    # "timestamp": "2019-05-22 10:45:07.154000",
+    # },
+    # ]
+    # expected_extracted_data = data[0]
+
+    @unittest.SkipTest
+    def test_handler(self):
+        with open("sample_ts_insert_input.json") as f:
+            event = json.load(f)
+        logging.debug("Event is : \n{}".format(pformat(event)))
+
+        handler(event, None)
 
 
 def suite():
