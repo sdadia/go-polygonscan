@@ -40,12 +40,15 @@ def convert_date_to_timestamp_unix(data):
 
 
 def string_time_to_unix_epoch(data):
-    ans = []
-    for date in data:
-        # ans.append(datetime.datetime.strptime(date, DATE_FORMAT).timestamp())
-        ans.append(ciso8601.parse_datetime(date).timestamp())
+    if isinstance(data, list):
+        ans = []
+        for date in data:
+            # ans.append(datetime.datetime.strptime(date, DATE_FORMAT).timestamp())
+            ans.append(ciso8601.parse_datetime(date).timestamp())
 
-    return ans
+        return ans
+    else:
+        return ciso8601.parse_datetime(data).timestamp()
 
 
 class TestStationaryIdlingTimeAggregations(unittest.TestCase):
@@ -197,21 +200,24 @@ class TestTransitions(unittest.TestCase):
     def test_find_time_location(self):
         # test case 1 - time is in between
         T = self.expected_ans_data_1["time"]
-        new_time = ciso8601.parse_datetime("2019-06-26T12:13:06Z").timestamp()
+        # new_time = ciso8601.parse_datetime("2019-06-26T12:13:06Z").timestamp()
+        new_time = string_time_to_unix_epoch("2019-06-26T12:13:06Z")
         index_1, loc = find_time_location(new_time, T)
         self.assertEqual(index_1, 1)
         self.assertEqual(loc, "between")
 
         # test case 2 - time before everything
         T = self.expected_ans_data_1["time"]
-        new_time = ciso8601.parse_datetime("2019-06-26T12:09:36Z").timestamp()
+        # new_time = ciso8601.parse_datetime("2019-06-26T12:09:36Z").timestamp()
+        new_time = string_time_to_unix_epoch("2019-06-26T12:09:36Z")
         index_1, loc = find_time_location(new_time, T)
         self.assertEqual(index_1, 0)
         self.assertEqual(loc, "start")
 
         # test case 2 - time after everything
         T = self.expected_ans_data_1["time"]
-        new_time = ciso8601.parse_datetime("2019-06-26T12:39:36Z").timestamp()
+        # new_time = ciso8601.parse_datetime("2019-06-26T12:39:36Z").timestamp()
+        new_time = string_time_to_unix_epoch("2019-06-26T12:39:36Z")
         index_1, loc = find_time_location(new_time, T)
         self.assertEqual(index_1, -1)
         self.assertEqual(loc, "end")
