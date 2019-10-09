@@ -1,6 +1,7 @@
 import json
 import ciso8601
 import random
+random.seed(1)
 import datetime
 import logging
 import os
@@ -66,6 +67,10 @@ class TestStationaryIdlingTimeAggregations(unittest.TestCase):
         for x in expected_ans_data_1["time"]
     ]
 
+    data_2 = [
+
+            ]
+
     def test_verify_valid_state_values_fail(self):
         input_state_values = [1, 2, 3, 4]
         valid_state_values = [-1, 1, 0]
@@ -95,17 +100,72 @@ class TestStationaryIdlingTimeAggregations(unittest.TestCase):
             state_transition_dictionary={"prev": [], "time": [], "curr": [1]},
         )
 
-    def test_update_state_transitions(self):
+    def test_update_state_transitions_data_in_reverse(self):
+        # some data
         value = self.data_1[0:2]
         value.reverse()
-        print(value)
         new_state_transition = update_state_transitions(
               value,
             state_transition_dictionary={"prev": [], "time": [], "curr": []},
         )
-        print(new_state_transition)
-
         self.assertEqual(new_state_transition['prev'], self.expected_ans_data_1['prev'][:2])
+        self.assertEqual(new_state_transition['time'], self.expected_ans_data_1['time'][:2])
+        self.assertEqual(new_state_transition['curr'], self.expected_ans_data_1['curr'][:2])
+
+
+        # all data
+        value = self.data_1.copy()
+        value.reverse()
+        new_state_transition = update_state_transitions(
+              value,
+            new_state_transition,
+        )
+        self.assertEqual(new_state_transition['prev'], self.expected_ans_data_1['prev'])
+        self.assertEqual(new_state_transition['time'], self.expected_ans_data_1['time'])
+        self.assertEqual(new_state_transition['curr'], self.expected_ans_data_1['curr'])
+
+
+
+    def test_update_state_transitions_data_in_forward(self):
+
+        value = self.data_1[0:2]
+        new_state_transition = update_state_transitions(
+              value,
+            state_transition_dictionary={"prev": [], "time": [], "curr": []},
+        )
+        # some data
+        value = self.data_1.copy()
+        new_state_transition = update_state_transitions(
+              value,
+            # state_transition_dictionary={"prev": [], "time": [], "curr": []},
+            new_state_transition
+        )
+        self.assertEqual(new_state_transition['prev'], self.expected_ans_data_1['prev'])
+        self.assertEqual(new_state_transition['time'], self.expected_ans_data_1['time'])
+        self.assertEqual(new_state_transition['curr'], self.expected_ans_data_1['curr'])
+
+
+
+    def test_update_state_transitions_data_shuffle(self):
+
+        value = self.data_1[0:2]
+        new_state_transition = update_state_transitions(
+              value,
+            state_transition_dictionary={"prev": [], "time": [], "curr": []},
+        )
+
+        value = self.data_1.copy()
+        random.shuffle(value)
+        new_state_transition = update_state_transitions(
+              value,
+            state_transition_dictionary={"prev": [], "time": [], "curr": []},
+        )
+        self.assertEqual(new_state_transition['prev'], self.expected_ans_data_1['prev'])
+        self.assertEqual(new_state_transition['time'], self.expected_ans_data_1['time'])
+        self.assertEqual(new_state_transition['curr'], self.expected_ans_data_1['curr'])
+
+
+
 
     def test_find_time_location(self):
         # test case 1 - time is in between
@@ -113,7 +173,7 @@ class TestStationaryIdlingTimeAggregations(unittest.TestCase):
         new_time = ciso8601.parse_datetime("2019-06-26 12:13:36").timestamp()
         index_1, loc = find_time_location(new_time, T)
         self.assertEqual(index_1, 1)
-        self.assertEqual(loc, "after")
+        self.assertEqual(loc, "between")
 
 
         # test case 2 - time before everything
@@ -130,6 +190,14 @@ class TestStationaryIdlingTimeAggregations(unittest.TestCase):
         index_1, loc = find_time_location(new_time, T)
         self.assertEqual(index_1, -1)
         self.assertEqual(loc, "end")
+
+        # test case 4 - time reprated
+        T = self.expected_ans_data_1["time"]
+        new_time = T[2]
+        index_1, loc = find_time_location(new_time, T)
+        self.assertEqual(index_1, None)
+        self.assertEqual(loc, "repeat")
+
 
 
 def suite():

@@ -1,4 +1,5 @@
 import logging
+from collections import deque
 import pandas as pd
 from typing import List, Dict, Tuple
 from pprint import pprint, pformat
@@ -35,28 +36,62 @@ def verify_valid_state_values(
 
 
 def convert_PTC_to_df(P, T, C):
-    return pd.DataFrame.from_dict({"P": P, "T": T, "C": C})
+    df = pd.DataFrame.from_dict({"P": P, "T": T, "C": C})
+    df['T'] = pd.to_datetime(df['T'],unit='s')
+    return  df
 
 
 def find_time_location(new_time: int, T:List):
     logger.debug("Function arguments are : \n{}".format(pformat(locals())))
 
-    # if new time is greater than everything
+
     if new_time > T[-1]:
         logger.warning("Given time is greater than all timestamps")
         return (-1, "end")
+    elif new_time == T[-1]:
+        logger.warning("Repeated timestamp : {}".format(new_time))
+        return (None, 'repeat')
     elif new_time < T[0]:
         logger.warning("Given time is less than all timestamps")
         return (0, "start")
+    elif new_time == T[0]:
+        logger.warning("Repeated timestamp : {}".format(new_time))
+        return (None, 'repeat')
     else:
-        for index in range(len(T) - 1):
-            if T[index] < new_time < T[index + 1]:
+        for index in range(0, len(T) - 1):
+            if new_time == T[index]:
+                logger.warning("Repeated timestamp : {}".format(new_time))
+                return (None, 'repeat')
+            elif T[index] < new_time < T[index + 1]:
                 logger.info(
                     "Found new time {} is between {} and {}".format(
                         new_time, T[index], T[index + 1]
                     )
                 )
-                return (index, "after")
+                return (index, "between")
+
+def clean_up(T, C):
+    '''
+    Specified the index to remove
+    '''
+    index_to_remove = []
+    for index in range(len(T)-1):
+        if (C[index] == C[index+1])  and ((T[index+1]-T[index])<=60):
+            index_to_remove.append(index+1)
+
+    logger.warning('Going to remove following index from PTC : {}'.format(index_to_remove))
+    return sorted(index_to_remove, reverse=True)
+
+
+def multipop(yourlist, itemstopop):
+    result = []
+    itemstopop.sort()
+    itemstopop = itemstopop[::-1]
+    for x in itemstopop:
+        result.append(yourlist.pop(x))
+    return result
+
+
 
 
 def update_state_transitions(
@@ -99,25 +134,38 @@ def update_state_transitions(
         "Length of the elements in the state transition dictionary are not equal"
     )
 
-    P = state_transition_dictionary["prev"]
-    T = state_transition_dictionary["time"]
-    C = state_transition_dictionary["curr"]
+    P = deque(state_transition_dictionary["prev"])
+    T = deque(state_transition_dictionary["time"])
+    C = deque(state_transition_dictionary["curr"])
 
     for d in data:
-        logger.debug("Current data point is : {}".format(d))
+        logger.debug("Current data point is : {}".format((pd.to_datetime(d[0], unit='s'), d[1])))
         new_point_ts = d[0]
         new_point_state = d[1]
 
-        # first time entry
+        # first time entry - always add the point
         if len(P) == 0:
+            logger.warning("Creating first time entry to PTC")
             P.append(-1)
             T.append(new_point_ts)
             C.append(new_point_state)
+
+            logger.debug(
+                "PTC after update : \n{}".format(convert_PTC_to_df(P, T, C))
+            )
             continue
 
+        # if not first time entry find the location of the point
         index, loc = find_time_location(new_point_ts, T)
+        print(index, loc)
 
+
+        # start means before every point
+        # P   T       C
+        # -1  10:00   F        <- new point inserted
+        # F   10:20   0
         if loc == 'start':
+            print('updating start')
             P.insert(0, -1)
             T.insert(0, new_point_ts)
             C.insert(0, new_point_state)
@@ -125,11 +173,59 @@ def update_state_transitions(
             # set the index+1 P equal to index C
             P[index+1] = C[index]
 
+        
+        # P   T       C
+        # -1  10:00   F        
+        # F   10:20   0        <- new point inserted
+        elif loc == 'end':
+            print('updating end')
+            P.append(-1)
+            T.append(new_point_ts)
+            C.append(new_point_state)
 
-                
+            # set the index P equal to index-1 C
+            P[-1] = C[-2]
 
-        logging.info(
+
+        # P   T       C
+        # -1  10:18   F        
+        # F   10:20   0        <- new point inserted
+        # 0   10:22   0        
+        elif loc == 'between':
+            print('updating between')
+            P.insert(index+1, -1)
+            T.insert(index+1, new_point_ts)
+            C.insert(index+1, new_point_state)
+            # print([pd.to_datetime(x, unit='s') for x in (T[index], T[index+1], T[index+2] )])
+
+
+            # set the P value of record we just added to that of the above
+            P[index+1] = C[index]
+
+            # Set the P value of the record after the record  we just added to be equal to
+            # the C value of the record we just added
+            P[index+2] = C[index+1]
+
+        
+        # P   T       C
+        # -1  10:00   F        
+        # F   10:20   0        <- same point repeated then just forget about it!
+        elif loc== 'repeat':
+            continue
+
+        logger.debug(
             "PTC after update : \n{}".format(convert_PTC_to_df(P, T, C))
         )
 
-    return {'prev': P, 'time': T, 'curr':C}
+    # remove the following index
+    index_to_remove = clean_up(T, C)
+    for idx in index_to_remove:
+        del P[idx]
+        del T[idx]
+        del C[idx]
+    logger.debug(
+        "PTC after cleanup : \n{}".format(convert_PTC_to_df(P, T, C))
+    )
+
+
+    return {'prev': list(P), 'time': list(T), 'curr': list(C)}
