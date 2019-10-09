@@ -1,4 +1,5 @@
 import ciso8601
+import time
 import random
 
 random.seed(1)
@@ -30,7 +31,7 @@ def convert_date_to_timestamp_unix(data):
     ans = []
 
     for date, status in data:
-        print(date, status)
+        # print(date, status)
         ans.append(
             # (datetime.datetime.strptime(date, DATE_FORMAT).timestamp(), status)
             (string_time_to_unix_epoch(date), status)
@@ -89,7 +90,7 @@ class TestTransitions(unittest.TestCase):
         ("2019-06-26T12:22:36Z", 1),
     ]
     data_1 = convert_date_to_timestamp_unix(data_1)
-    print(data_1)
+    # print(data_1)
 
     expected_ans_data_1 = {
         "prev": [-1, 0, 1, 0, 1, 0],
@@ -107,7 +108,7 @@ class TestTransitions(unittest.TestCase):
         expected_ans_data_1["time"]
     )
 
-    def test_update_state_transitions_unequal_state_transition_dictionary_len(
+    def test_update_state_transitions_unequal_dictionary_len_raise_Exception(
         self
     ):
         self.assertRaises(
