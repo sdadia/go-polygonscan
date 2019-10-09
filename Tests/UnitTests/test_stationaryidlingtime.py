@@ -33,7 +33,7 @@ def convert_date_to_timestamp_unix(data):
         print(date, status)
         ans.append(
             # (datetime.datetime.strptime(date, DATE_FORMAT).timestamp(), status)
-            (ciso8601.parse_datetime(date).timestamp(), status)
+            (string_time_to_unix_epoch(date) , status)
         )
 
     return ans
