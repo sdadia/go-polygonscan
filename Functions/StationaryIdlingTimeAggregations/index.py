@@ -235,9 +235,17 @@ def find_actual_time_from_state_transitons(state_transition_dictionary):
     time_1 = None
     time_2 = None
     total_time = 0.0
-    for ts, status in zip(T, C):
+    index = 0
 
-        # print(convert_unix_epoch_to_ts(ts), status)
+    if C[-1] == 1:
+        logger.warning(
+            "Post Correction needed as last value for state transition is 1"
+        )
+        post_correction_needed = True
+    else:
+        post_correction_needed = False
+
+    for ts, status in zip(T, C):
         if (status == 1) and (not started):
             time_1 = ts
             started = True
@@ -248,5 +256,4 @@ def find_actual_time_from_state_transitons(state_transition_dictionary):
             total_time += time_2 - time_1
             time_1 = time_2 = None
 
-        # print(ts, status, (time_1), (time_2), total_time)
-    return total_time
+    return total_time, post_correction_needed

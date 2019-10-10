@@ -132,6 +132,40 @@ class TestTransitions(unittest.TestCase):
 
     expected_value_for_time_data_1 = 300  # seconds
 
+    # data without post correction
+    data_2 = [
+        ("2019-06-26T12:10:36Z", 0),
+        ("2019-06-26T12:11:36Z", 1),
+        ("2019-06-26T12:12:36Z", 1),
+        ("2019-06-26T12:13:36Z", 1),
+        ("2019-06-26T12:14:36Z", 0),
+        ("2019-06-26T12:15:36Z", 1),
+        ("2019-06-26T12:16:36Z", 1),
+        ("2019-06-26T12:17:36Z", 0),
+        ("2019-06-26T12:18:36Z", 0),
+    ]
+    data_2 = convert_date_to_timestamp_unix(data_2)
+    # print(data_1)
+
+    expected_ans_data_2 = {
+        "prev": [-1, 0, 1, 0, 1],
+        "time": [
+            "2019-06-26T12:10:36Z",
+            "2019-06-26T12:11:36Z",
+            "2019-06-26T12:14:36Z",
+            "2019-06-26T12:15:36Z",
+            "2019-06-26T12:18:36Z",
+        ],
+        "curr": [0, 1, 0, 1, 0],
+    }
+    expected_ans_data_2["time"] = string_time_to_unix_epoch(
+        expected_ans_data_2["time"]
+    )
+
+    expected_value_for_time_data_2 = 360  # seconds
+
+    # data
+
     def test_update_state_transitions_unequal_dictionary_len_raise_Exception(
         self
     ):
@@ -256,8 +290,18 @@ class TestTransitions(unittest.TestCase):
 
     def test_find_actual_time_from_state_transitons(self):
 
-        ans = find_actual_time_from_state_transitons(self.expected_ans_data_1)
+        ans, post_correction_needed = find_actual_time_from_state_transitons(
+            self.expected_ans_data_1
+        )
         self.assertEqual(ans, self.expected_value_for_time_data_1)
+        self.assertEqual(post_correction_needed, True)
+
+        # try without post correction
+        ans, post_correction_needed = find_actual_time_from_state_transitons(
+            self.expected_ans_data_2
+        )
+        self.assertEqual(ans, self.expected_value_for_time_data_2)
+        self.assertEqual(post_correction_needed, False)
 
     # @unittest.SkipTest
     def test_icar_dataset_idling_time(self):
@@ -267,6 +311,7 @@ class TestTransitions(unittest.TestCase):
             data = json.load(f)
 
         idling_data = []
+        trip_end_time = data[-1]["timeStamp"]
         for d in data:
             # print(d)
             if d["acc"] == 1 and d["gps"]["speed"] == 0:
@@ -283,8 +328,50 @@ class TestTransitions(unittest.TestCase):
             idling_data, {"prev": [], "time": [], "curr": []}
         )
 
-        total_value = find_actual_time_from_state_transitons(ans)
-        print(str(datetime.timedelta(seconds=total_value)))
+        total_time, post_correction_needed = find_actual_time_from_state_transitons(
+            ans
+        )
+        print(str(datetime.timedelta(seconds=total_time)))
+
+    # @unittest.SkipTest
+    def test_icar_dataset_stationary_time(self):
+        with open(
+            "/home/sahil/Documents/trip_calculation/code/icar_streaming_replayer/12296_01_oct.txt"
+        ) as f:
+            data2 = json.load(f)
+        # print(data2)
+        trip_end_time = data2[-1]["timeStamp"]
+
+        data = []
+        for d in data2:
+            if d["gps"]["speed"] == 0:
+                d["stationary"] = 1
+                data.append((d["timeStamp"], 1))
+            elif d["gps"]["speed"] > 0:
+                d["stationary"] = 0
+                data.append((d["timeStamp"], 0))
+
+        data = convert_date_to_timestamp_unix(data)
+        # print(len(data))
+        random.shuffle(data)
+
+        ans = update_state_transitions(
+            data, {"prev": [], "time": [], "curr": []}
+        )
+
+        total_time, post_correction_needed = find_actual_time_from_state_transitons(
+            ans
+        )
+
+        # print(str(datetime.timedelta(seconds=total_time)))
+
+        if post_correction_needed:
+            print(trip_end_time, ans["time"][-1])
+            total_time += (
+                string_time_to_unix_epoch(trip_end_time) - ans["time"][-1]
+            )
+
+        print(str(datetime.timedelta(seconds=total_time)))
 
 
 def suite():
