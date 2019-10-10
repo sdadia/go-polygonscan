@@ -130,6 +130,8 @@ class TestTransitions(unittest.TestCase):
         expected_ans_data_1["time"]
     )
 
+    expected_value_for_time_data_1 = 300  # seconds
+
     def test_update_state_transitions_unequal_dictionary_len_raise_Exception(
         self
     ):
@@ -251,6 +253,11 @@ class TestTransitions(unittest.TestCase):
         index_1, loc = find_time_location(new_time, T)
         self.assertEqual(index_1, None)
         self.assertEqual(loc, "repeat")
+
+    def test_find_actual_time_from_state_transitons(self):
+
+        ans = find_actual_time_from_state_transitons(self.expected_ans_data_1)
+        self.assertEqual(ans, self.expected_value_for_time_data_1)
 
     # @unittest.SkipTest
     def test_icar_dataset_idling_time(self):

@@ -237,7 +237,7 @@ def find_actual_time_from_state_transitons(state_transition_dictionary):
     total_time = 0.0
     for ts, status in zip(T, C):
 
-        print(convert_unix_epoch_to_ts(ts), status)
+        # print(convert_unix_epoch_to_ts(ts), status)
         if (status == 1) and (not started):
             time_1 = ts
             started = True
@@ -248,5 +248,5 @@ def find_actual_time_from_state_transitons(state_transition_dictionary):
             total_time += time_2 - time_1
             time_1 = time_2 = None
 
-        print(ts, status, (time_1), (time_2), total_time)
+        # print(ts, status, (time_1), (time_2), total_time)
     return total_time
