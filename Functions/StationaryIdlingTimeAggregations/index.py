@@ -3,6 +3,7 @@ from collections import deque
 import pandas as pd
 from typing import List, Dict, Tuple
 from pprint import pformat
+import datetime
 
 pd.set_option("float_format", "{:.2f}".format)
 
@@ -12,6 +13,18 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+
+
+def convert_unix_epoch_to_ts(data):
+    if isinstance(data, list):
+        ans = []
+        for date in data:
+            # ans.append(datetime.datetime.strptime(date, DATE_FORMAT).timestamp())
+            ans.append(datetime.datetime.utcfromtimestamp(date))
+
+        return ans
+    else:
+        return datetime.datetime.utcfromtimestamp(data)
 
 
 def verify_valid_state_values(
@@ -39,7 +52,7 @@ def convert_PTC_to_df(P, T, C):
 
 
 def find_time_location(new_time: int, T: List):
-    logger.debug("Function arguments are : \n{}".format(pformat(locals())))
+    # logger.debug("Function arguments are : \n{}".format(pformat(locals())))
 
     if new_time > T[-1]:
         logger.warning("Given time is greater than all timestamps")
@@ -149,14 +162,14 @@ def update_state_transitions(
 
         # if not first time entry find the location of the point
         index, loc = find_time_location(new_point_ts, T)
-        print(index, loc)
+        # print(index, loc)
 
         # start means before every point
         # P   T       C
         # -1  10:00   F        <- new point inserted
         # F   10:20   0
         if loc == "start":
-            print("updating start")
+            # print("updating start")
             P.insert(0, -1)
             T.insert(0, new_point_ts)
             C.insert(0, new_point_state)
@@ -168,7 +181,7 @@ def update_state_transitions(
         # -1  10:00   F
         # F   10:20   0        <- new point inserted
         elif loc == "end":
-            print("updating end")
+            # print("updating end")
             P.append(-1)
             T.append(new_point_ts)
             C.append(new_point_state)
@@ -181,7 +194,7 @@ def update_state_transitions(
         # F   10:20   0        <- new point inserted
         # 0   10:22   0
         elif loc == "between":
-            print("updating between")
+            # print("updating between")
             P.insert(index + 1, -1)
             T.insert(index + 1, new_point_ts)
             C.insert(index + 1, new_point_state)
@@ -213,3 +226,27 @@ def update_state_transitions(
     logger.debug("PTC after cleanup : \n{}".format(convert_PTC_to_df(P, T, C)))
 
     return {"prev": list(P), "time": list(T), "curr": list(C)}
+
+
+def find_actual_time_from_state_transitons(state_transition_dictionary):
+    C = state_transition_dictionary["curr"]
+    T = state_transition_dictionary["time"]
+    started = False
+    time_1 = None
+    time_2 = None
+    total_time = 0.0
+    for ts, status in zip(T, C):
+
+        print(convert_unix_epoch_to_ts(ts), status)
+        if (status == 1) and (not started):
+            time_1 = ts
+            started = True
+        elif (status == 0) and (started):
+            time_2 = ts
+            started = False
+
+            total_time += time_2 - time_1
+            time_1 = time_2 = None
+
+        print(ts, status, (time_1), (time_2), total_time)
+    return total_time

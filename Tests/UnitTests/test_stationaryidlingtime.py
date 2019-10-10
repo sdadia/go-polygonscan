@@ -1,5 +1,9 @@
 import ciso8601
+import pytz
+import datetime
+import pandas as pd
 import time
+import json
 import random
 
 random.seed(1)
@@ -7,6 +11,9 @@ import logging
 import os
 import sys
 import unittest
+from pprint import pformat
+
+pd.set_option("display.max_rows", 500)
 
 
 # Function import to test
@@ -17,6 +24,8 @@ from Functions.StationaryIdlingTimeAggregations.index import (
     verify_valid_state_values,
     update_state_transitions,
     find_time_location,
+    convert_PTC_to_df,
+    find_actual_time_from_state_transitons,
 )
 
 
@@ -31,11 +40,7 @@ def convert_date_to_timestamp_unix(data):
     ans = []
 
     for date, status in data:
-        # print(date, status)
-        ans.append(
-            # (datetime.datetime.strptime(date, DATE_FORMAT).timestamp(), status)
-            (string_time_to_unix_epoch(date), status)
-        )
+        ans.append((string_time_to_unix_epoch(date), status))
 
     return ans
 
@@ -44,12 +49,29 @@ def string_time_to_unix_epoch(data):
     if isinstance(data, list):
         ans = []
         for date in data:
-            # ans.append(datetime.datetime.strptime(date, DATE_FORMAT).timestamp())
-            ans.append(ciso8601.parse_datetime(date).timestamp())
+            ans.append(
+                ciso8601.parse_datetime(date)
+                .replace(tzinfo=pytz.UTC)
+                .timestamp()
+            )
 
         return ans
     else:
-        return ciso8601.parse_datetime(data).timestamp()
+        return (
+            ciso8601.parse_datetime(data).replace(tzinfo=pytz.UTC).timestamp()
+        )
+
+
+def convert_unix_epoch_to_ts(data):
+    if isinstance(data, list):
+        ans = []
+        for date in data:
+            # ans.append(datetime.datetime.strptime(date, DATE_FORMAT).timestamp())
+            ans.append(datetime.datetime.utcfromtimestamp(date))
+
+        return ans
+    else:
+        return datetime.datetime.utcfromtimestamp(data)
 
 
 class TestStationaryIdlingTimeAggregations(unittest.TestCase):
@@ -229,6 +251,33 @@ class TestTransitions(unittest.TestCase):
         index_1, loc = find_time_location(new_time, T)
         self.assertEqual(index_1, None)
         self.assertEqual(loc, "repeat")
+
+    # @unittest.SkipTest
+    def test_icar_dataset_idling_time(self):
+        with open(
+            "/home/sahil/Documents/trip_calculation/code/icar_streaming_replayer/12296_01_oct.txt"
+        ) as f:
+            data = json.load(f)
+
+        idling_data = []
+        for d in data:
+            # print(d)
+            if d["acc"] == 1 and d["gps"]["speed"] == 0:
+                d["idling"] = 1
+                idling_data.append((d["timeStamp"], 1))
+            else:
+                d["idling"] = 0
+                idling_data.append((d["timeStamp"], 0))
+
+        idling_data = convert_date_to_timestamp_unix(idling_data)
+        random.shuffle(idling_data)
+
+        ans = update_state_transitions(
+            idling_data, {"prev": [], "time": [], "curr": []}
+        )
+
+        total_value = find_actual_time_from_state_transitons(ans)
+        print(str(datetime.timedelta(seconds=total_value)))
 
 
 def suite():
