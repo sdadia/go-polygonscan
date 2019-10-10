@@ -51,6 +51,12 @@ def convert_PTC_to_df(P, T, C):
     return df
 
 
+def convert_TC_to_df(T, C):
+    df = pd.DataFrame.from_dict({"T": T, "C": C})
+    df["T"] = pd.to_datetime(df["T"], unit="s")
+    return df
+
+
 def find_time_location(new_time: int, T: List):
     # logger.debug("Function arguments are : \n{}".format(pformat(locals())))
 
@@ -257,3 +263,67 @@ def find_actual_time_from_state_transitons(state_transition_dictionary):
             time_1 = time_2 = None
 
     return total_time, post_correction_needed
+
+
+def update_state_transitions_using_TC(
+    data: List[Tuple], state_transition_dictionary: Dict
+):
+    """
+    This function updates state transition. The state transition list must look like this.
+
+    NOTE : The timestamps must be of python datetime type
+
+    Parameters
+    ----------
+    data : list of tuples
+        The data is the states we want to find the transitions for. The data must look like this
+        [ ("12:20", 1), ("12:23", 1), ("12:24", 0) .....]. Where the first part must be in UNIX TIME.
+        Second part must be the state value. Valid state values are 0, 1, "-"
+    state_transition_dictionary : dictionary with the following format
+        {
+         'prev' : [-, F, F, 0, F, 0],
+         'Time' : ["12:30", "12:45", "12:37", "12:30", "12:45", "12:37"]
+        }
+
+        Prev_state   Time   Curr_state
+        -           10:12   1 (F)
+        F           10:14   0
+    """
+
+    logger.debug("Function arguments are : \n{}".format(pformat(locals())))
+
+    verify_valid_state_values(state_transition_dictionary["curr"])
+
+    # check of the lenght of the state transition list, if all are not equal, raise exception
+    assert len(state_transition_dictionary["curr"]) == len(
+        state_transition_dictionary["time"]
+    ), logger.error(
+        "Length of the elements in the state transition dictionary are not equal"
+    )
+    new_data_T = [x[0] for x in data]
+    new_data_C = [x[1] for x in data]
+
+    T = state_transition_dictionary["time"] + new_data_T
+    C = state_transition_dictionary["curr"] + new_data_C
+
+    T, C = zip(*sorted(zip(T, C)))
+    T = list(T)
+    C = list(C)
+
+    index_to_remove = clean_up(T, C)
+    for idx in index_to_remove:
+        del T[idx]
+        del C[idx]
+    logger.debug("TC after cleanup : \n{}".format(convert_TC_to_df(T, C)))
+    return {"time": list(T), "curr": list(C)}
+
+
+def handler(event, context):
+
+    # get_data_from_event
+
+    # mark each data point as
+
+    # get state transitions for time for device
+
+    pass

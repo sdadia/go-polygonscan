@@ -26,6 +26,7 @@ from Functions.StationaryIdlingTimeAggregations.index import (
     find_time_location,
     convert_PTC_to_df,
     find_actual_time_from_state_transitons,
+    update_state_transitions_using_TC,
 )
 
 
@@ -301,6 +302,32 @@ class TestStateTransitionFunction(unittest.TestCase):
         self.assertEqual(ans, self.expected_value_for_time_data_2)
         self.assertEqual(post_correction_needed, False)
 
+    def test_update_state_transitions_using_TC_raises_exception(self):
+        self.assertRaises(
+            AssertionError,
+            update_state_transitions_using_TC,
+            self.data_1,
+            state_transition_dictionary={"time": [], "curr": [1]},
+        )
+
+    def test_update_state_transitions_using_TC_forward(self):
+        value = self.data_1[0:2]
+        new_state_transition = update_state_transitions_using_TC(
+            value, state_transition_dictionary={"time": [], "curr": []}
+        )
+
+        value = self.data_1.copy()
+        random.shuffle(value)
+        new_state_transition = update_state_transitions_using_TC(
+            value, new_state_transition
+        )
+        self.assertEqual(
+            new_state_transition["time"], self.expected_ans_data_1["time"]
+        )
+        self.assertEqual(
+            new_state_transition["curr"], self.expected_ans_data_1["curr"]
+        )
+
 
 class TestStationaryIdlingTimeAggregations(unittest.TestCase):
     with open("sample_stationary_idling_time_input.json") as f:
@@ -329,11 +356,12 @@ class TestStationaryIdlingTimeAggregations(unittest.TestCase):
 
     def test_icar_dataset_stationary_time(self):
         data = convert_date_to_timestamp_unix(self.stationary_data)
-        # random.shuffle(data)
+        random.shuffle(data)
 
-        ans = update_state_transitions(
-            data, {"prev": [], "time": [], "curr": []}
-        )
+        # ans = update_state_transitions(
+        # data, {"prev": [], "time": [], "curr": []}
+        # )
+        ans = update_state_transitions_using_TC(data, {"time": [], "curr": []})
         total_time, post_correction_needed = find_actual_time_from_state_transitons(
             ans
         )
@@ -346,11 +374,12 @@ class TestStationaryIdlingTimeAggregations(unittest.TestCase):
 
     def test_icar_dataset_idling_time(self):
         data = convert_date_to_timestamp_unix(self.idling_data)
-        # random.shuffle(data)
+        random.shuffle(data)
 
-        ans = update_state_transitions(
-            data, {"prev": [], "time": [], "curr": []}
-        )
+        # ans = update_state_transitions(
+        # data, {"prev": [], "time": [], "curr": []}
+        # )
+        ans = update_state_transitions_using_TC(data, {"time": [], "curr": []})
         total_time, post_correction_needed = find_actual_time_from_state_transitons(
             ans
         )
