@@ -449,7 +449,7 @@ class TestStationaryIdlingTimeAggregations(unittest.TestCase):
             {"prev": [], "time": [], "curr": []},
         )
         result = handler(event, None)
-        print(result)
+        # print(result)
 
     def test_extract_data_from_kinesis(self):
         logger.info("Testing extract data from kinesis")

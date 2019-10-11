@@ -15,7 +15,7 @@ import sys
 pd.set_option("float_format", "{:.2f}".format)
 
 logging.basicConfig(
-    format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
+    format="%(asctime)s.%(msecs)03d %(levelname)s %(filename)s %(module)s - %(funcName)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     level=logging.INFO,
 )
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 from pvapps_odm.Schema.models import StationaryIdlingModel
 from pvapps_odm.session import dynamo_session
 from pvapps_odm.ddbcon import dynamo_dbcon
+os.environ["localhost"] = "True"
 from pynamodb.connection import Connection
 from pynamodb.exceptions import DoesNotExist
 
@@ -402,7 +403,7 @@ def extract_data_from_kinesis(event):
             stationary_data.append((d["timestamp"], 0))
             idling_data.append((d["timestamp"], 0))
 
-        print(d)
+        # print(d)
 
         all_records[d["deviceId"]]["stationary_data"].append(
             (d["timestamp"], d["stationary"])
@@ -477,20 +478,20 @@ def handler(event, context):
         idling_state_transition, stationary_state_transition = (
             get_stationary_idling_state_transitions()
         )
-        print(idling_state_transition)
-        print(stationary_state_transition)
+        # print(idling_state_transition)
+        # print(stationary_state_transition)
 
         # update the idling transitions states
         updated_idling_state_transition = update_state_transitions_using_TC(
             idling_data, idling_state_transition
         )
-        print(updated_idling_state_transition)
+        # print(updated_idling_state_transition)
 
         # update stationary transition states
         updated_stationary_state_transition = update_state_transitions_using_TC(
             stationary_data, stationary_state_transition
         )
-        print(updated_stationary_state_transition)
+        # print(updated_stationary_state_transition)
 
         # write the updated state transition to the dynamodb
         write_stationary_idling_state_transitions_to_dynamo(
