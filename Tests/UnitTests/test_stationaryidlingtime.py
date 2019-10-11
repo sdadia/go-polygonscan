@@ -1,19 +1,23 @@
-import ciso8601
-import pytz
-import datetime
-import pandas as pd
-import time
-import json
-import random
-
-random.seed(1)
-import logging
-import os
-import sys
-import unittest
 from pprint import pformat
+import ciso8601
+import datetime
+import json
+import logging
+import mock
+import pandas as pd
 
 pd.set_option("display.max_rows", 500)
+import pytz
+import random
+import sys
+import time
+import unittest
+
+random.seed(1)
+import os
+
+os.environ["localhost"] = "True"
+from pvapps_odm.Schema.models import StationaryIdlingModel
 
 
 # Function import to test
@@ -27,6 +31,10 @@ from Functions.StationaryIdlingTimeAggregations.index import (
     convert_PTC_to_df,
     find_actual_time_from_state_transitons,
     update_state_transitions_using_TC,
+    extract_data_from_kinesis,
+    get_stationary_idling_state_transitions,
+    handler,
+    write_stationary_idling_state_transitions_to_dynamo,
 )
 
 
@@ -330,6 +338,17 @@ class TestStateTransitionFunction(unittest.TestCase):
 
 
 class TestStationaryIdlingTimeAggregations(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        StationaryIdlingModel.create_table()
+        time.sleep(1)
+
+    # @classmethod
+    # def tearDownClass(cls):
+        # time.sleep(5)
+        # StationaryIdlingModel.delete_table()
+
+    # with open("sample_stationary_idling_time_input.json") as f:
     with open("sample_stationary_idling_time_input.json") as f:
         event = json.load(f)
     trip_end_time = event[-1]["timeStamp"]
@@ -350,7 +369,7 @@ class TestStationaryIdlingTimeAggregations(unittest.TestCase):
             stationary_data.append((d["timeStamp"], 0))
             idling_data.append((d["timeStamp"], 0))
 
-    logger.debug("Event is : {}".format(pformat(event)))
+    # logger.debug("Event is : {}".format(pformat(event)))
     expected_idling_time_value = 115
     expected_stationary_time_value = 240
 
@@ -390,6 +409,84 @@ class TestStationaryIdlingTimeAggregations(unittest.TestCase):
                 string_time_to_unix_epoch(self.trip_end_time) - ans["time"][-1]
             )
         self.assertEqual(total_time, self.expected_idling_time_value)
+
+    def test_write_stationary_idling_state_transitions_to_dynamo(self):
+        deviceId = "123"
+        expected_idling_state_transition = {"time": [123, 124], "curr": [1, 0]}
+        expected_stationary_state_transition = {
+            "time": [223, 224],
+            "curr": [0, 1],
+        }
+
+        write_stationary_idling_state_transitions_to_dynamo(
+            deviceId,
+            expected_idling_state_transition,
+            expected_stationary_state_transition,
+        )
+
+        idling_state, stationary_state = get_stationary_idling_state_transitions(
+            deviceId
+        )
+
+        for k in list(expected_stationary_state_transition.keys()):
+            self.assertTrue(
+                expected_stationary_state_transition[k], stationary_state[k]
+            )
+            self.assertTrue(
+                expected_idling_state_transition[k], idling_state[k]
+            )
+
+    # @unittest.SkipTest
+    @mock.patch(
+        "Functions.StationaryIdlingTimeAggregations.index.get_stationary_idling_state_transitions"
+    )
+    def test_handler_mock(self, mock_get_data_from_dynamo):
+        with open("./sample_speed_aggregation_input_event.json") as f:
+            event = json.load(f)
+
+        mock_get_data_from_dynamo.return_value = (
+            {"prev": [], "time": [], "curr": []},
+            {"prev": [], "time": [], "curr": []},
+        )
+        result = handler(event, None)
+        print(result)
+
+    def test_extract_data_from_kinesis(self):
+        logger.info("Testing extract data from kinesis")
+        with open("./sample_speed_aggregation_input_event.json") as f:
+            event = json.load(f)
+        logger.debug("My Event is :\n{}".format(pformat(event)))
+        all_records = extract_data_from_kinesis(event)
+
+        expected_all_records = {
+            "9b59fd3e-17e0-11e9-ab14-d663bd873": {
+                "idling_data": [
+                    (1558521905.154, 0),
+                    (1558521906.154, 0),
+                    (1558521907.154, 0),
+                ],
+                "stationary_data": [
+                    (1558521905.154, 0),
+                    (1558521906.154, 0),
+                    (1558521907.154, 0),
+                ],
+            }
+        }
+
+        self.assertEqual(
+            list(expected_all_records.keys()), list(all_records.keys())
+        )
+        for key in expected_all_records:
+            self.assertEqual(
+                all_records[key]["idling_data"],
+                expected_all_records[key]["idling_data"],
+            )
+            self.assertEqual(
+                all_records[key]["stationary_data"],
+                expected_all_records[key]["stationary_data"],
+            )
+
+        logger.info("Testing extract data from kinesis...Done")
 
 
 def suite():

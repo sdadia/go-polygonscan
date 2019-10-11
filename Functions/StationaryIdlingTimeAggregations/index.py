@@ -1,9 +1,16 @@
-import logging
+from base64 import b64decode
+import os
+os.environ["localhost"] = "True"
 from collections import deque
-import pandas as pd
-from typing import List, Dict, Tuple
 from pprint import pformat
+from typing import List, Dict, Tuple
+import ciso8601
 import datetime
+import json
+import logging
+import pandas as pd
+import pytz
+import sys
 
 pd.set_option("float_format", "{:.2f}".format)
 
@@ -13,6 +20,26 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+
+#######################
+# Database Connection #
+#######################
+
+from pvapps_odm.Schema.models import StationaryIdlingModel
+from pvapps_odm.session import dynamo_session
+from pvapps_odm.ddbcon import dynamo_dbcon
+from pynamodb.connection import Connection
+from pynamodb.exceptions import DoesNotExist
+
+
+if "localhost" in os.environ:
+    print("Testing on localhost")
+    ddb = dynamo_dbcon(
+        StationaryIdlingModel, conn=Connection(host="http://localhost:8000")
+    )
+else:
+    ddb = dynamo_dbcon(StationaryIdlingModel, conn=Connection())
+ddb.connect()
 
 
 def convert_unix_epoch_to_ts(data):
@@ -318,12 +345,158 @@ def update_state_transitions_using_TC(
     return {"time": list(T), "curr": list(C)}
 
 
+def string_time_to_unix_epoch(data):
+    if isinstance(data, list):
+        ans = []
+        for date in data:
+            ans.append(
+                ciso8601.parse_datetime(date)
+                .replace(tzinfo=pytz.UTC)
+                .timestamp()
+            )
+
+        return ans
+    else:
+        return (
+            ciso8601.parse_datetime(data).replace(tzinfo=pytz.UTC).timestamp()
+        )
+
+
+def extract_data_from_kinesis(event):
+    logger.info("Extracting data from Kinesis")
+    logger.debug("Event for extraction is : {}".format(pformat(event)))
+
+    all_records = []
+    idling_data = []
+    stationary_data = []
+
+    all_records = {}
+    for r in event["Records"]:
+        data = b64decode(r["kinesis"]["data"]).decode("utf-8")
+        data = json.loads(data)
+        d = data
+
+        if d["deviceId"] not in all_records:
+            all_records[d["deviceId"]] = {
+                "stationary_data": [],
+                "idling_data": [],
+            }
+
+        d["gps"]["speed"] = float(d["gps"]["speed"])
+        d["timestamp"] = string_time_to_unix_epoch(d["timestamp"])
+
+        if d["gps"]["speed"] == 0:
+            d["stationary"] = 1
+            stationary_data.append((d["timestamp"], 1))
+
+            if d["acc"] == 1:
+
+                d["idling"] = 1
+                idling_data.append((d["timestamp"], 1))
+            else:
+                d["idling"] = 0
+                idling_data.append((d["timestamp"], 0))
+        elif d["gps"]["speed"] > 0:
+            d["stationary"] = 0
+            d["idling"] = 0
+            stationary_data.append((d["timestamp"], 0))
+            idling_data.append((d["timestamp"], 0))
+
+        print(d)
+
+        all_records[d["deviceId"]]["stationary_data"].append(
+            (d["timestamp"], d["stationary"])
+        )
+
+        all_records[d["deviceId"]]["idling_data"].append(
+            (d["timestamp"], d["idling"])
+        )
+
+    logger.debug("All Data : \n{}".format(pformat(all_records)))
+    logger.info("Extracting data from Kinesis...Done")
+
+    return all_records
+
+
+def get_stationary_idling_state_transitions(deviceId):
+    try:
+        response = ddb.get_object(deviceId, None)
+
+        return (
+            json.loads(response.idling_state_transition),
+            json.loads(response.stationary_state_transition),
+        )
+    except Exception as e:
+        logger.error(e)
+        logger.warning(
+            "Data for stationary and idling time transition does not \
+            exist for deviceId : {}".format(
+                deviceId
+            )
+        )
+        stationary_state_transition_default = {"time": [], "curr": []}
+        idling_state_transition_default = {"time": [], "curr": []}
+        return (
+            idling_state_transition_default,
+            stationary_state_transition_default,
+        )
+
+
+def write_stationary_idling_state_transitions_to_dynamo(
+    deviceId,
+    updated_idling_state_transition,
+    updated_stationary_state_transition,
+):
+    data = {
+        "deviceId": deviceId,
+        "idling_state_transition": json.dumps(updated_idling_state_transition),
+        "stationary_state_transition": json.dumps(
+            updated_stationary_state_transition
+        ),
+    }
+    object_1 = StationaryIdlingModel(**data)
+
+    ddb.session.add_items([object_1])
+    ddb.session.commit_items()
+
+    return object_1
+
+
 def handler(event, context):
 
     # get_data_from_event
+    idling_stationary_data_per_device = extract_data_from_kinesis(event)
 
-    # mark each data point as
+    for deviceId in list(idling_stationary_data_per_device.keys()):
+        idling_data = idling_stationary_data_per_device[deviceId]["idling_data"]
+        stationary_data = idling_stationary_data_per_device[deviceId][
+            "stationary_data"
+        ]
 
-    # get state transitions for time for device
+        # get state transitions for time for device
+        idling_state_transition, stationary_state_transition = (
+            get_stationary_idling_state_transitions()
+        )
+        print(idling_state_transition)
+        print(stationary_state_transition)
 
-    pass
+        # update the idling transitions states
+        updated_idling_state_transition = update_state_transitions_using_TC(
+            idling_data, idling_state_transition
+        )
+        print(updated_idling_state_transition)
+
+        # update stationary transition states
+        updated_stationary_state_transition = update_state_transitions_using_TC(
+            stationary_data, stationary_state_transition
+        )
+        print(updated_stationary_state_transition)
+
+        # write the updated state transition to the dynamodb
+        write_stationary_idling_state_transitions_to_dynamo(
+            deviceId,
+            updated_idling_state_transition,
+            updated_stationary_state_transition,
+        )
+
+    return "successfully updated the Stationary and Idling Time"
