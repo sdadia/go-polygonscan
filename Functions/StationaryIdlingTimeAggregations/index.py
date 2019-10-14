@@ -1,5 +1,6 @@
 from base64 import b64decode
 import os
+
 os.environ["localhost"] = "True"
 from collections import deque
 from pprint import pformat
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 from pvapps_odm.Schema.models import StationaryIdlingModel
 from pvapps_odm.session import dynamo_session
 from pvapps_odm.ddbcon import dynamo_dbcon
+
 os.environ["localhost"] = "True"
 from pynamodb.connection import Connection
 from pynamodb.exceptions import DoesNotExist
@@ -475,8 +477,8 @@ def handler(event, context):
         ]
 
         # get state transitions for time for device
-        idling_state_transition, stationary_state_transition = (
-            get_stationary_idling_state_transitions()
+        idling_state_transition, stationary_state_transition = get_stationary_idling_state_transitions(
+            deviceId
         )
         # print(idling_state_transition)
         # print(stationary_state_transition)

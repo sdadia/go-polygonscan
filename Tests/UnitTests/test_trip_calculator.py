@@ -13,10 +13,16 @@ sys.path.append(
 
 logging.getLogger("m2").setLevel(logging.ERROR)
 
+logger = logging.getLogger()
+logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
+
 from Functions.CalculateTrips.index import (
     AggregationModel,
+    StationaryIdlingModel,
     SpanModel,
     aggregate_speed_for_trip,
+    aggregate_stationary_idling_time,
+    keep_relevant_data_for_stationary_idling_btw_start_end_time,
     handler,
 )
 
@@ -237,9 +243,96 @@ class Test_trip_calculator_pandas(unittest.TestCase):
         expected_answer = {"avg_speed": 10.5}
         self.assertEqual(ans, expected_answer)
 
+    def test_keep_relevant_data_for_stationary_idling_btw_start_end_time(self):
+        data = {
+            "time": [
+                1554569100.0,  # 2019-04-06 16:45:00,  0
+                1554569160.0,  # 2019-04-06 16:46:00,  1
+                1554569220.0,  # 2019-04-06 16:47:00,  0
+                1554569280.0,  # 2019-04-06 16:48:00,  1
+                1554569340.0,  # 2019-04-06 16:49:00,  0
+                1554569400.0,  # 2019-04-06 16:50:00,  1
+            ],
+            "curr": [0, 1, 0, 1, 0, 1],
+        }
+
+        trimmed_data = keep_relevant_data_for_stationary_idling_btw_start_end_time(
+            "2019-04-06 16:47:00", "2019-04-06 16:49:00", data.copy()
+        )
+        for x, y in zip(range(len(trimmed_data)), [2, 3, 4]):
+            self.assertEqual(trimmed_data["time"][x], data["time"][y])
+            self.assertEqual(trimmed_data["curr"][x], data["curr"][y])
+
+        trimmed_data = keep_relevant_data_for_stationary_idling_btw_start_end_time(
+            "2019-04-06 16:51:00", "2019-04-06 16:52:00", data.copy()
+        )
+        self.assertEqual(trimmed_data["time"], [])
+        self.assertEqual(trimmed_data["curr"], [])
+
+    @mock.patch("Functions.CalculateTrips.index.ddb_stationary_idling")
+    def test_aggregate_stationary_idling_for_trip(
+        self, mock_ddb_stationary_idling
+    ):
+        data_for_mock = {
+            "deviceId": "123",
+            "stationary_state_transition": json.dumps(
+                {
+                    "prev": [-1, 0, 1, 0, 1, 0],
+                    "time": [
+                        1554569100.0,  # 2019-04-06 16:45:00,  0
+                        1554569160.0,  # 2019-04-06 16:46:00,  1
+                        1554569220.0,  # 2019-04-06 16:47:00,  0
+                        1554569280.0,  # 2019-04-06 16:48:00,  1
+                        1554569340.0,  # 2019-04-06 16:49:00,  0
+                        1554569400.0,  # 2019-04-06 16:50:00,  1
+                    ],
+                    "curr": [0, 1, 0, 1, 0, 1],
+                }
+            ),
+            "idling_state_transition": json.dumps(
+                {
+                    "prev": [-1, 0, 1, 0, 1, 0],
+                    "time": [
+                        1554569100.0,  # 2019-04-06 16:45:00,  0
+                        1554569160.0,  # 2019-04-06 16:46:00,  1
+                        1554569220.0,  # 2019-04-06 16:47:00,  0
+                        1554569280.0,  # 2019-04-06 16:48:00,  1
+                        1554569340.0,  # 2019-04-06 16:49:00,  0
+                        1554569400.0,  # 2019-04-06 16:50:00,  1
+                    ],
+                    "curr": [0, 1, 0, 1, 0, 1],
+                }
+            ),
+        }
+
+        mock_ddb_stationary_idling.get_object.return_value = StationaryIdlingModel(
+            **data_for_mock
+        )
+
+        stationry_idling_time_dict = aggregate_stationary_idling_time(
+            "123", "2019-04-06 16:44:00", "2019-04-06 16:50:00"
+        )
+        self.assertEqual(stationry_idling_time_dict["stationary_time"], 120)
+        self.assertEqual(stationry_idling_time_dict["idling_time"], 120)
+
+        stationry_idling_time_dict = aggregate_stationary_idling_time(
+            "123", "2019-04-06 16:51:00", "2019-04-06 16:52:00"
+        )
+        self.assertEqual(stationry_idling_time_dict["stationary_time"], -1)
+        self.assertEqual(stationry_idling_time_dict["idling_time"], -1)
+
+        stationry_idling_time_dict = aggregate_stationary_idling_time(
+            "123", "2019-04-06 16:41:00", "2019-04-06 16:46:00"
+        )
+        self.assertEqual(stationry_idling_time_dict["stationary_time"], 0)
+        self.assertEqual(stationry_idling_time_dict["idling_time"], 0)
+
+    @mock.patch("Functions.CalculateTrips.index.ddb_stationary_idling")
     @mock.patch("Functions.CalculateTrips.index.ddb_agg")
     @mock.patch("Functions.CalculateTrips.index.ddb_span")
-    def test_handler_mock(self, mock_ddb_spans, mock_ddb_agg):
+    def test_handler_mock(
+        self, mock_ddb_spans, mock_ddb_agg, mock_ddb_stationary_idling
+    ):
         mock_ddb_span_data = {
             "deviceId": "123",
             "spans": json.dumps(
@@ -334,6 +427,42 @@ class Test_trip_calculator_pandas(unittest.TestCase):
             [AggregationModel(**d) for d in mock_data_for_agg[2]],
         ]
 
+        data_for_mock = {
+            "deviceId": "123",
+            "stationary_state_transition": json.dumps(
+                {
+                    "prev": [-1, 0, 1, 0, 1, 0],
+                    "time": [
+                        1558543500.0,  # 2019-05-22 16:45:00,  0
+                        1558543560.0,  # 2019-05-22 16:46:00,  1
+                        1558543620.0,  # 2019-05-22 16:47:00,  0
+                        1558543680.0,  # 2019-05-22 16:48:00,  1
+                        1558543740.0,  # 2019-05-22 16:49:00,  0
+                        1558543800.0,  # 2019-05-22 16:50:00,  1
+                    ],
+                    "curr": [0, 1, 0, 1, 0, 1],
+                }
+            ),
+            "idling_state_transition": json.dumps(
+                {
+                    "prev": [-1, 0, 1, 0, 1, 0],
+                    "time": [
+                        1558543500.0,  # 2019-05-22 16:45:00,  0
+                        1558543560.0,  # 2019-05-22 16:46:00,  1
+                        1558543620.0,  # 2019-05-22 16:47:00,  0
+                        1558543680.0,  # 2019-05-22 16:48:00,  1
+                        1558543740.0,  # 2019-05-22 16:49:00,  0
+                        1558543800.0,  # 2019-05-22 16:50:00,  1
+                    ],
+                    "curr": [0, 1, 0, 1, 0, 1],
+                }
+            ),
+        }
+
+        mock_ddb_stationary_idling.get_object.return_value = StationaryIdlingModel(
+            **data_for_mock
+        )
+
         event = {
             "deviceId": "123",
             "start_datetime": "2019-05-22 00:00:00",
@@ -342,23 +471,36 @@ class Test_trip_calculator_pandas(unittest.TestCase):
         }
         ans = handler(event, None)
         ans = json.loads(ans)
+        pprint(ans)
         expected_output = {
             "trips": [
                 {
                     "end_time": "2019-05-22 10:47:06.154000+00:00",
-                    "metrics": {"avg_speed": 10.46},
+                    "metrics": {
+                        "avg_speed": 10.46,
+                        "idling_time": -1,
+                        "stationary_time": -1,
+                    },
                     "spanId": ["1234"],
                     "start_time": "2019-05-22 10:45:05.154000+00:00",
                 },
                 {
                     "end_time": "2019-05-22 11:47:06.154000+00:00",
-                    "metrics": {"avg_speed": 10.46},
+                    "metrics": {
+                        "avg_speed": 10.46,
+                        "idling_time": -1,
+                        "stationary_time": -1,
+                    },
                     "spanId": ["2234"],
                     "start_time": "2019-05-22 11:45:05.154000+00:00",
                 },
                 {
                     "end_time": "2019-05-22 16:47:06.154000+00:00",
-                    "metrics": {"avg_speed": 10.46},
+                    "metrics": {
+                        "avg_speed": 10.46,
+                        "idling_time": 66.15,
+                        "stationary_time": 66.15,
+                    },
                     "spanId": ["3234"],
                     "start_time": "2019-05-22 16:45:05.154000+00:00",
                 },
