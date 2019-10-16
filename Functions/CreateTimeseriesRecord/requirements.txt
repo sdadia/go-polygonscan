@@ -1,2 +1,3 @@
 amazon-dax-client
 boto3
+ciso8601
