@@ -19,6 +19,7 @@ from pvapps_odm.Schema.models import SpanModel
 from pvapps_odm.session import dynamo_session
 from pvapps_odm.ddbcon import dynamo_dbcon
 from pvapps_odm.ddbcon import Connection
+import ciso8601
 
 sess = dynamo_session(SpanModel)
 
@@ -179,7 +180,8 @@ def format_spans(
     if as_datetime:
         for x in span_list:
             for t in to_format_as_time:
-                x[t] = datetime.datetime.strptime(x[t], DATETIME_FORMAT)
+                x[t] = ciso8601.parse_datetime(x[t])
+                # x[t] = datetime.datetime.strptime(x[t], DATETIME_FORMAT)
     else:
         for x in span_list:
             for t in to_format_as_time:
@@ -198,7 +200,8 @@ def format_data_pts_in_rec(
         for x in span_list:
             # print(x)
             for t in to_format_as_time:
-                x[t] = datetime.datetime.strptime(x[t], DATETIME_FORMAT)
+                # x[t] = datetime.datetime.strptime(x[t], DATETIME_FORMAT)
+                x[t] = ciso8601.parse_datetime(x[t])
     else:
         for x in span_list:
             for t in to_format_as_time:
@@ -747,7 +750,7 @@ def handler(event, context):
     # Get all records from event #
     ##############################
     all_records = get_all_records_in_event(event)
-    # print(all_records)
+    print(all_records)
 
     ######################################
     # keep only valid values in a record #

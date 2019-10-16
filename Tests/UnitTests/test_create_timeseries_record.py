@@ -1,3 +1,4 @@
+import pytz
 import json
 import datetime
 import logging
@@ -10,7 +11,7 @@ from pvapps_odm.Schema.models import SpanModel
 
 os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
 
-logging.getLogger("index").setLevel(logging.ERROR)
+logging.getLogger("index").setLevel(logging.DEBUG)
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,7 +30,7 @@ from Functions.CreateTimeseriesRecord.index import (
 
 
 logger = logging.getLogger("test_span_calculator2")
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.DEBUG)
 
 import os
 import mock
@@ -88,11 +89,11 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             {
                 "spans": [
                     {
-                        "start_time": datetime.datetime(
-                            2019, 5, 22, 10, 45, 5, 154000
+                        "start_time": pytz.UTC.localize(
+                            datetime.datetime(2019, 5, 22, 10, 45, 5, 154000)
                         ),
-                        "end_time": datetime.datetime(
-                            2019, 5, 22, 10, 45, 14, 154000
+                        "end_time": pytz.UTC.localize(
+                            datetime.datetime(2019, 5, 22, 10, 45, 14, 154000)
                         ),
                         "spanId": "123",
                     }
@@ -112,7 +113,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         logger.debug("Event is : {}".format(event))
         all_records = get_all_records_in_event(event)
 
-        logging.debug(
+        logger.debug(
             "Extracted records are : \n{}".format(pformat(all_records))
         )
 
