@@ -1,4 +1,5 @@
 --extra-index-url https://gy6o8w1na5.execute-api.us-east-1.amazonaws.com/Prod
 pandas
-aggregation-lib
+aggregation-lib==0.1
 boto3
+pvapps-odm-dev==0.0.2

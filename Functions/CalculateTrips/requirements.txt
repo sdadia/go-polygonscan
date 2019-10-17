@@ -1,5 +1,7 @@
+--extra-index-url 'https://gy6o8w1na5.execute-api.us-east-1.amazonaws.com/Prod
 jsonschema
 pandas
 numpy
 boto3
 ciso8601
+pvapps-odm-dev==0.0.2
