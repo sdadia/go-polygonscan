@@ -46,6 +46,11 @@ Parameters:
     Description: Prefix for creation of TS telematics tables
     Default: AggregationTable
 
+  ProcessedTelematicsStream:
+    Type: String
+    Description: Stream for CreateTimeseriesRecord to process 
+    Default: NA
+
 Resources:
 
   #
@@ -249,8 +254,8 @@ Resources:
       Environment:
         Variables:
           TSDynamoDBTableName: !Sub
-            - ${ProjectId}-${ServiceName}-TelematicsTable-${Stage}
-            - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName, Stage: !Ref Stage }
+            - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
+            - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref TSTablePrefix ,Stage: !Ref Stage }
       Events:
         KinesisSource:
           Type: Kinesis
