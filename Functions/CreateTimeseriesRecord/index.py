@@ -78,11 +78,8 @@ else:
 kinesis_client = boto3.client("kinesis")
 
 
-<<<<<<< HEAD
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
-=======
-DATETIME_FOMRAT = "%Y-%m-%dT%H:%M:%SZ"
->>>>>>> master
+# DATETIME_FOMRAT = "%Y-%m-%dT%H:%M:%SZ"
 
 ################################
 # ODM imports
@@ -219,7 +216,7 @@ def format_data_pts_in_rec(
 def sort_data_by_date(data_list, attribute_to_sort, reverse=False):
     """
     Sorts array of dicts by attribute provided, given that the attribute is formatted as datetime
-    
+
     TODO: Format as epoch
     """
 
@@ -232,7 +229,7 @@ def sort_data_by_date(data_list, attribute_to_sort, reverse=False):
 
 def remove_invalid_trip_data(telematics_data):
     """
-    This function removes the datapoints with invalid GPS coordinates. 
+    This function removes the datapoints with invalid GPS coordinates.
     The invalid GPS coordinates are the one whose status key is zero.
 
     Parameters
