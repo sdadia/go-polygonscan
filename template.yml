@@ -32,26 +32,19 @@ Parameters:
   SpanTablePrefix:
     Type: String
     Description: Prefix for creation of TS span tables
-    Default: 
-      !Sub
-        - ${ProjectId}-${ServiceName}-SpanTable-${Stage}
-        - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName, Stage: !Ref Stage }
+    Default: SpanTable
+      
 
   TSTablePrefix:
     Type: String
     Description: Prefix for creation of TS telematics tables
-    Default: 
-      !Sub
-        - ${ProjectId}-${ServiceName}-TelematicsTable-${Stage}
-        - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName, Stage: !Ref Stage }
+    Default: TelematicsTable
+      
 
   AggregationTablePrefix:
     Type: String
     Description: Prefix for creation of TS telematics tables
-    Default: 
-      !Sub
-        - ${ProjectId}-${ServiceName}-AggregationsTable-${Stage}
-        - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName, Stage: !Ref Stage }
+    Default: AggregationTable
 
 Resources:
 
@@ -174,7 +167,9 @@ Resources:
       Role: !GetAtt LambdaExecutionRoleDDBKinesis.Arn 
       Environment:
         Variables:
-          SpanDynamoDBTableName: !Ref SpanTablePrefix
+          SpanDynamoDBTableName: !Sub
+            - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
+            - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref SpanTablePrefix ,Stage: !Ref Stage }
           OutputKinesisStreamName: !Ref TaggedDataStream
           
       # Input Event Pending Kinesis Stream Creation For Decompressed/Enriched Data 
@@ -203,8 +198,12 @@ Resources:
       Role: !GetAtt LambdaExecutionRoleDDB.Arn 
       Environment:
         Variables:
-          SpanDynamoDBTableName: !Ref SpanTablePrefix
-          AggDynamoDBTableName: !Ref AggregationTablePrefix
+          SpanDynamoDBTableName: !Sub
+            - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
+            - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref SpanTablePrefix ,Stage: !Ref Stage }
+          AggDynamoDBTableName: !Sub
+            - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
+            - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref AggregationTablePrefix ,Stage: !Ref Stage }
           StationaryIdlingTransitionDynamoTable: !Ref StationaryIdlingTimeTable
 
   #
@@ -223,7 +222,9 @@ Resources:
       Role: !GetAtt LambdaExecutionRoleDDBKinesis.Arn 
       Environment:
         Variables:
-          AggDynamoDBTableName: !Ref AggregationTablePrefix
+          AggDynamoDBTableName: !Sub
+            - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
+            - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref AggregationTablePrefix ,Stage: !Ref Stage }
       Events:
         KinesisSource:
           Type: Kinesis
@@ -247,7 +248,9 @@ Resources:
       Role: !GetAtt LambdaExecutionRoleDDBKinesis.Arn 
       Environment:
         Variables:
-          TSDynamoDBTableName: !Ref TSTablePrefix
+          TSDynamoDBTableName: !Sub
+            - ${ProjectId}-${ServiceName}-TelematicsTable-${Stage}
+            - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName, Stage: !Ref Stage }
       Events:
         KinesisSource:
           Type: Kinesis
