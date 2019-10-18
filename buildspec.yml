@@ -24,13 +24,6 @@ phases:
   
   build:
     commands:
-      # ODM Layer Creation commands
-      - mkdir -p Layers/python
-      - pip install pvapps-odm-dev --extra-index-url https://gy6o8w1na5.execute-api.us-east-1.amazonaws.com/Prod -t Layers/python/
-      - pip install jsonschema -t Layers/python/
-      - cd Layers
-      - zip -r pvapps-odm-dev.zip python 
-      - cd ..
       # Build Service Template for usage in deployment
       - sam build --debug
       - sam package --template-file template.yml --s3-bucket $S3_BUCKET --output-template trip-calculation.yml --debug

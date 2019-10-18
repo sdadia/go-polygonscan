@@ -29,17 +29,50 @@ Parameters:
     Description: Name of the current service
     Default: trip-calculation
 
+  SpanTablePrefix:
+    Type: String
+    Description: Prefix for creation of TS span tables
+    Default: 
+      !Sub
+        - ${ProjectId}-${ServiceName}-SpanTable-${Stage}
+        - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName, Stage: !Ref Stage }
+
+  TSTablePrefix:
+    Type: String
+    Description: Prefix for creation of TS telematics tables
+    Default: 
+      !Sub
+        - ${ProjectId}-${ServiceName}-TelematicsTable-${Stage}
+        - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName, Stage: !Ref Stage }
+
+  AggregationTablePrefix:
+    Type: String
+    Description: Prefix for creation of TS telematics tables
+    Default: 
+      !Sub
+        - ${ProjectId}-${ServiceName}-AggregationsTable-${Stage}
+        - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName, Stage: !Ref Stage }
+
 Resources:
 
-  # ODM Layer for use with trip calculation functions.
-  pvappsOdmDev:
-    Type: AWS::Serverless::LayerVersion
+  #
+  # Stores vehicle state transitions for it's trips
+  #
+  StationaryIdlingTimeTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      LayerName: pvapps-odm-dev
-      ContentUri: Layers/pvapps-odm-dev.zip
-      CompatibleRuntimes:
-        - python3.6
-      RetentionPolicy: Retain
+      AttributeDefinitions:
+        - 
+          AttributeName: deviceId
+          AttributeType: S
+      KeySchema:
+        -
+          AttributeName: deviceId
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
 
   #
   # Stores list of spans for telematics trip calculations
@@ -147,8 +180,9 @@ Resources:
       Role: !GetAtt LambdaExecutionRoleDDB.Arn 
       Environment:
         Variables:
-          SpanTable: !Ref SpanTable
-          TimeseriesTable: !Ref TimeseriesTable
+          SpanDynamoDBTableName: !Ref SpanTablePrefix
+          OutputKinesisStreamName: !Ref TaggedDataStream
+          
       # Input Event Pending Kinesis Stream Creation For Decompressed/Enriched Data 
       # Events:
       #   KinesisSource:
@@ -175,8 +209,9 @@ Resources:
       Role: !GetAtt LambdaExecutionRoleDDB.Arn 
       Environment:
         Variables:
-          SpanTable: !Ref SpanTable
-          TimeseriesTable: !Ref TimeseriesTable
+          SpanDynamoDBTableName: !Ref SpanTablePrefix
+          AggDynamoDBTableName: !Ref AggregationTablePrefix
+          StationaryIdlingTransitionDynamoTable: !Ref StationaryIdlingTimeTable
 
   #
   # Invoked via Kinesis Stream
@@ -193,7 +228,7 @@ Resources:
       Role: !GetAtt LambdaExecutionRoleDDB.Arn 
       Environment:
         Variables:
-          AggDynamoDBTableName: !Ref AggregateTable
+          AggDynamoDBTableName: !Ref AggregationTablePrefix
       Events:
         KinesisSource:
           Type: Kinesis
@@ -218,7 +253,7 @@ Resources:
       Role: !GetAtt LambdaExecutionRoleDDB.Arn 
       Environment:
         Variables:
-          TimeseriesTable: !Ref TimeseriesTable
+          TSDynamoDBTableName: !Ref TSTablePrefix
       Events:
         KinesisSource:
           Type: Kinesis
