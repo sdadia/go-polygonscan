@@ -1,14 +1,15 @@
 import logging
+import datetime
 import os
 import sys
 import unittest
 import json
 from pprint import pprint, pformat
 
-logging.getLogger('speed_log').setLevel(logging.INFO)
+logging.getLogger("speed_log").setLevel(logging.ERROR)
 
 log = logging.getLogger("test_speed_logger")
-log.setLevel(logging.INFO)
+log.setLevel(logging.ERROR)
 
 
 # this contains the code for trip calculation
@@ -30,6 +31,8 @@ from Functions.SpeedAggregations.index import (
     extract_data_from_kinesis,
     find_unique_span_timestamp,
     format_event_data,
+    update_data_in_dynamo_using_ODM,
+    DATETIME_FORMAT3,
 )
 from Functions import SpeedAggregations
 
@@ -37,14 +40,15 @@ pprint(logging.log)
 
 
 class Test_speed_aggregation(unittest.TestCase):
-
+    @unittest.SkipTest
     def test_handler(self):
-        with open("./sample_speed_aggregation_input_event2.json") as f:
+        with open("./sample_speed_aggregation_input_event.json") as f:
             event = json.load(f)
         logging.debug("Event is :\n{}".format(pformat(event)))
         handler(event, None)
 
     def test_extract_data_from_kinesis(self):
+        logging.info("Testing extract data from kinesis")
         with open("./sample_speed_aggregation_input_event.json") as f:
             event = json.load(f)
         log.debug("Event is :\n{}".format(pformat(event)))
@@ -52,49 +56,68 @@ class Test_speed_aggregation(unittest.TestCase):
 
         expected_response = [
             {
-                "acc": 1,
-                "course": "251.5",
-                "deviceId": "12296",
-                "gpstime": "2019-09-04 00:24:11",
-                "io": 268602755,
-                "latitude": "51.611922",
-                "longitude": "-0.044040",
-                "parkTime": 1442,
-                "spanId": "be092656-fc46-417a-9074-47b5e6f57d77",
-                "speed": 0,
-                "status": "valid",
-                "timestamp": "2019-09-04 00:24:11",
+                "GPSTime": "2019-05-22T10:45:05Z",
+                "acc": "0",
+                "alt": "41.00",
+                "course": "63.60",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "geoid": "55.00",
+                "io": "00000000",
+                "lat": "5319.8250N",
+                "lng": "622.34220W",
+                "spanId": "123",
+                "speed": "0.28",
+                "status": "1",
+                "timestamp": "2019-05-22 10:45:05.154000",
             },
             {
-                "acc": 1,
-                "course": "251.5",
-                "deviceId": "12296",
-                "gpstime": "2019-09-04 00:24:21",
-                "io": 268602755,
-                "latitude": "51.611995",
-                "longitude": "-0.043943",
-                "parkTime": 0,
-                "spanId": "be092656-fc46-417a-9074-47b5e6f57d77",
-                "speed": 40,
-                "status": "valid",
-                "timestamp": "2019-09-04 00:24:21",
+                "GPSTime": "2019-05-22T10:45:06Z",
+                "acc": "0",
+                "alt": "41.00",
+                "course": "148.87",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "geoid": "55.00",
+                "io": "00000000",
+                "lat": "5319.8250N",
+                "lng": "622.34210W",
+                "spanId": "123",
+                "speed": "0.83",
+                "status": "1",
+                "timestamp": "2019-05-22 10:45:06.154000",
+            },
+            {
+                "GPSTime": "2019-05-22T10:45:07Z",
+                "acc": "0",
+                "alt": "41.00",
+                "course": "137.71",
+                "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                "geoid": "55.00",
+                "io": "00000000",
+                "lat": "5319.8249N",
+                "lng": "622.34200W",
+                "spanId": "123",
+                "speed": "0.52",
+                "status": "1",
+                "timestamp": "2019-05-22 10:45:07.154000",
             },
         ]
 
         for e1, e2 in zip(ans, expected_response):
             self.assertCountEqual(e1, e2)
 
+        logging.info("Testing extract data from kinesis...Done")
+
     def test_find_unique_span_timestamp(self):
         input_data = [
-            {"spanId": "123", "timestamp": "2019-09-04 00:24:11"},
-            {"spanId": "123", "timestamp": "2019-09-04 00:24:21"},
-            {"spanId": "122", "timestamp": "2019-09-04 00:25:41"},
+            {"spanId": "123", "timestamp": "2019-05-22 10:45:07.154000"},
+            {"spanId": "123", "timestamp": "2019-05-22 10:45:07.154000"},
+            {"spanId": "122", "timestamp": "2019-05-22 10:45:07.154000"},
         ]
         ans = find_unique_span_timestamp(input_data)
 
         expected_response = [
-            ("123", "2019-09-04 00:24:00"),
-            ("122", "2019-09-04 00:25:00"),
+            ("123", "2019-05-22 10:45:07.154000"),
+            ("122", "2019-05-22 10:45:07.154000"),
         ]
 
         for e1, e2 in zip(sorted(ans), sorted(expected_response)):
@@ -102,32 +125,45 @@ class Test_speed_aggregation(unittest.TestCase):
 
     def test_format_event_data(self):
         input_data = [
-            {"spanId": "123", "timestamp": "2019-09-04 00:25:21", "speed": 120},
-            {"spanId": "123", "timestamp": "2019-09-04 00:25:31", "speed": 160},
-            {"spanId": "122", "timestamp": "2019-09-04 00:25:41", "speed": 280},
+            {
+                "spanId": "123",
+                "timestamp": "2019-05-22 10:46:07.154000",
+                "speed": 120,
+            },
+            {
+                "spanId": "123",
+                "timestamp": "2019-05-22 10:45:07.154000",
+                "speed": 160,
+            },
+            {
+                "spanId": "122",
+                "timestamp": "2019-05-22 10:45:07.154000",
+                "speed": 280,
+            },
         ]
 
         expected_output = [
             {
-                "timestamp": "2019-09-04 00:25:00+00:00",
+                "timestamp": "2019-05-22 10:46:07.154000+00:00",
                 "spanId_metricname": "123_speed",
                 "speed": 120.0,
                 "count": 1.0,
             },
             {
-                "timestamp": "2019-09-04 00:25:00+00:00",
+                "timestamp": "2019-05-22 10:45:07.154000+00:00",
                 "spanId_metricname": "123_speed",
                 "speed": 160.0,
                 "count": 1.0,
             },
             {
-                "timestamp": "2019-09-04 00:25:00+00:00",
+                "timestamp": "2019-05-22 10:45:07.154000+00:00",
                 "spanId_metricname": "122_speed",
                 "speed": 280.0,
                 "count": 1.0,
             },
         ]
         event_df = format_event_data(input_data)
+        # print(event_df)
 
         for e1, e2 in zip(
             expected_output, list(event_df.to_dict(orient="index").values())
@@ -135,6 +171,56 @@ class Test_speed_aggregation(unittest.TestCase):
             # print(e1, e2)
             self.assertCountEqual(e1, e2)
 
+    def test_update_data_in_dynamo_using_ODM(self):
+        data = [
+            {
+                "timestamp": "2019-05-22 10:44:07",
+                "spanId_metricname": "123_speed",
+                "speed": 120.0,
+                "count": 1.0,
+            },
+            {
+                "timestamp": "2019-05-22 10:45:07",
+                "spanId_metricname": "123_speed",
+                "speed": 160.0,
+                "count": 2.0,
+            },
+            {
+                "timestamp": "2019-05-22 10:46:07",
+                "spanId_metricname": "122_speed",
+                "speed": 280.0,
+                "count": 3.0,
+            },
+        ]
 
-if __name__ == "__main__":
-    unittest.main()
+        expected_output = [
+            {
+                "timestamp": "2019-05-22 10:44:00",
+                "spanId_metricname": "123_speed",
+                "value": 120.0,
+                "count": 1.0,
+            },
+            {
+                "timestamp": "2019-05-22 10:45:00",
+                "spanId_metricname": "123_speed",
+                "value": 160.0,
+                "count": 2.0,
+            },
+            {
+                "timestamp": "2019-05-22 10:46:00",
+                "spanId_metricname": "122_speed",
+                "value": 280.0,
+                "count": 3.0,
+            },
+        ]
+        ans = update_data_in_dynamo_using_ODM(data)
+        ans = [x.attribute_values for x in ans]
+        for e1, e2 in zip(expected_output, ans):
+            e2["timestamp"] = str(e2["timestamp"])
+            self.assertEqual(e1, e2)
+
+
+def suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(Test_speed_aggregation))
+    return suite

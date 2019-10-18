@@ -4,7 +4,9 @@ from jsonschema import ValidationError, validate
 from operator import itemgetter
 from pprint import pformat, pprint
 import amazondax
+import ciso8601
 import boto3
+import pytz
 import botocore
 import datetime
 import dynamo_helper
@@ -15,7 +17,15 @@ import os
 import pandas as pd
 import time
 
-from pvapps_odm.Schema.models import SpanModel, AggregationModel
+from pvapps_odm.Schema.models import (
+    SpanModel,
+    AggregationModel,
+    StationaryIdlingModel,
+)
+from pvapps_odm.ddbcon import dynamo_dbcon
+from pvapps_odm.ddbcon import Connection
+
+from typing import Dict
 
 
 root = logging.getLogger()
@@ -27,6 +37,8 @@ logging.basicConfig(
     level=logging.INFO,
     datefmt="%Y-%m-%d %H:%M:%S.%s",
 )
+logger = logging.getLogger()
+logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 ######################################################
 ##                                                  ##
@@ -41,8 +53,8 @@ for var in envVarsList:
         env_vars[var] = os.environ[var]
 
 env_vars["SpanDynamoDBTableName"] = str(SpanModel.Meta.table_name)
-# SpanModel.Meta.table_name = env_vars['SpanDynamoDBTableName'] +
-env_vars["AggDynamoDBTableName"] = str(AggregationModel.Meta.table_name)
+# SpanModel.Meta.table_name = env_vars['SpanDynamoDBTableName']
+env_vars["AggregateTable"] = str(AggregationModel.Meta.table_name)
 print(SpanModel.Meta.table_name)
 logging.info("Environment variables are : {}".format(env_vars))
 
@@ -55,6 +67,17 @@ dynamodb_resource = boto3.resource("dynamodb")
 serializer = boto3.dynamodb.types.TypeSerializer()
 deserializer = boto3.dynamodb.types.TypeDeserializer()
 metric_table = dynamodb_resource.Table(env_vars["AggregateTable"])
+
+ddb_span = dynamo_dbcon(SpanModel, conn=Connection())
+ddb_span.connect()
+
+
+ddb_agg = dynamo_dbcon(AggregationModel, conn=Connection())
+ddb_agg.connect()
+
+
+ddb_stationary_idling = dynamo_dbcon(AggregationModel, conn=Connection())
+ddb_stationary_idling.connect()
 
 # enable dax
 if "DAXUrl" in env_vars:
@@ -71,7 +94,7 @@ else:
 
 ######################################################
 ##                                                  ##
-## Default incoming_event_schema of incoming request##
+##      Default incoming_event_schema of incoming request          ##
 ##                                                  ##
 ######################################################
 incoming_event_schema = {
@@ -149,13 +172,15 @@ def get_trips_pandas(
     df[["start_time_", "end_time_"]] = df[["start_time", "end_time"]].apply(
         pd.to_datetime
     )
-    # print(df)
+    user_end_time = pd.to_datetime(user_end_time).tz_localize("UTC")
+    user_start_time = pd.to_datetime(user_start_time).tz_localize("UTC")
 
     # keep the data only between user specified start and end_time
     df = df[
-        (df["start_time_"] > user_start_time)
-        & (df["end_time_"] < user_end_time)
+        (df["start_time_"] >= user_start_time)
+        & (df["end_time_"] <= user_end_time)
     ]
+    # print(df)
 
     df.sort_values(by="start_time_", ascending=True, inplace=True)
     # print(df)
@@ -228,7 +253,7 @@ def get_span_data_from_dynamo_dax(deviceId):
         )
     )
 
-    if not 'Item' in response.keys():
+    if "Item" not in response.keys():
         logging.warn("No Span Records exist for deviceId : {}".format(deviceId))
         return []
     else:
@@ -236,11 +261,31 @@ def get_span_data_from_dynamo_dax(deviceId):
             response["Item"], deserializer
         )
 
-        if 'spans' in deserialized_data.keys():
+        if "spans" in deserialized_data.keys():
             return json.loads(deserialized_data["spans"])
         else:
-            logging.warn("No Span Data exists for deviceId : {}".format(deviceId))
+            logging.warn(
+                "No Span Data exists for deviceId : {}".format(deviceId)
+            )
             return []
+
+
+def get_span_data_from_dynamo_dax_using_ODM(deviceId):
+    logging.info(
+        "Getting span data from dynamoDAX for deviceId : {}".format(deviceId)
+    )
+
+    response = ddb_span.batch_get([deviceId])
+
+    logging.info("response from dax : {}".format(response))
+
+    if response == []:
+        # hasattr(response, "Item")
+        logging.warn("No Span Data exist for deviceId : {}".format(deviceId))
+        return []
+    else:
+        return json.loads((response[0].attribute_values)["spans"])
+        # return json.loads(deserialized_data["spans"])
 
 
 def preprocess_list_of_spans(list_of_spans_dict):
@@ -286,7 +331,9 @@ def get_speed_data_from_dynamo(spanIds):
             "Getting metric Data from DynaomoDB for spanId : {}".format(sp)
         )
         response = metric_table.query(
-            KeyConditionExpression=Key("spanId_MetricType").eq(str(sp + "_speed"))
+            KeyConditionExpression=Key("spanId_MetricType").eq(
+                str(sp + "_speed")
+            )
         )
 
         logging.info(
@@ -310,6 +357,28 @@ def get_speed_data_from_dynamo(spanIds):
 
 
 def aggregate_speed_for_trip(spanIds):
+    # print(spanIds)
+
+    all_data = []
+    for sp in spanIds:
+        response = ddb_agg.session.query(sp + "_speed", None)
+        # print(response)
+        all_data.extend(response)
+
+    speed_data = [x.attribute_values for x in all_data]
+    # pprint(all_data)
+
+    if len(speed_data) == 0:
+        return {"avg_speed": round(-1)}
+    else:
+        df = pd.DataFrame(speed_data)
+        df["speed_mul_count"] = df["value"] * df["count"]
+        avg_speed = df["speed_mul_count"].sum() / df["count"].sum()
+        avg_speed = float(avg_speed)
+        return {"avg_speed": round(avg_speed, 2)}
+
+
+def aggregate_speed_for_trip2(spanIds):
 
     speed_data = get_speed_data_from_dynamo(spanIds)
 
@@ -323,8 +392,231 @@ def aggregate_speed_for_trip(spanIds):
         return {"avg_speed": float(avg_speed)}
 
 
+def get_stationary_idling_state_transitions(deviceId):
+    try:
+        response = ddb_stationary_idling.get_object(deviceId, None)
+        return (
+            json.loads(response.idling_state_transition),
+            json.loads(response.stationary_state_transition),
+        )
+    except Exception as e:
+        logger.error(e)
+        logger.warning(
+            "Data for stationary and idling time transition does not exist for deviceId : {}. Will return default Time and Current State which are empty".format(
+                deviceId
+            )
+        )
+        stationary_state_transition_default = {"time": [], "curr": []}
+        idling_state_transition_default = {"time": [], "curr": []}
+        return (
+            idling_state_transition_default,
+            stationary_state_transition_default,
+        )
+
+
+def find_actual_time_from_state_transitons(state_transition_dictionary):
+    print(state_transition_dictionary)
+    C = state_transition_dictionary["curr"]
+    T = state_transition_dictionary["time"]
+    started = False
+    time_1 = None
+    time_2 = None
+    total_time = 0.0
+    index = 0
+
+    if C[-1] == 1:
+        logger.warning(
+            "Post Correction needed as last value for state transition is 1"
+        )
+        post_correction_needed = True
+    else:
+        post_correction_needed = False
+
+    for ts, status in zip(T, C):
+        if (status == 1) and (not started):
+            time_1 = ts
+            started = True
+        elif (status == 0) and (started):
+            time_2 = ts
+            started = False
+
+            total_time += time_2 - time_1
+            time_1 = time_2 = None
+
+    return total_time, post_correction_needed
+
+
+def string_time_to_unix_epoch(data):
+    if isinstance(data, list):
+        ans = []
+        for date in data:
+            ans.append(
+                ciso8601.parse_datetime(date)
+                .replace(tzinfo=pytz.UTC)
+                .timestamp()
+            )
+
+        return ans
+    else:
+        return (
+            ciso8601.parse_datetime(data).replace(tzinfo=pytz.UTC).timestamp()
+        )
+
+
+from bisect import bisect_left, bisect_right
+
+
+def find_ge(a, x):
+    "Find leftmost item greater than or equal to x"
+    i = bisect_left(a, x)
+    if i != len(a):
+        return i
+    raise ValueError
+
+
+def find_le(a, x):
+    "Find rightmost value less than or equal to x"
+    i = bisect_right(a, x)
+    if i:
+        return i - 1
+    raise ValueError
+
+
+def keep_relevant_data_for_stationary_idling_btw_start_end_time(
+    start_time: float, end_time: float, data
+):
+    assert end_time > start_time, logger.error(
+        "Start time cannot be less than end time"
+    )
+
+    logger.debug("Function parameters are : \n{}".format(pformat(locals())))
+    start_time = string_time_to_unix_epoch(start_time)
+    end_time = string_time_to_unix_epoch(end_time)
+
+    logger.warning(
+        "Start time after conversion is : {} \t {}".format(start_time, end_time)
+    )
+
+    try:
+        start_index = find_ge(data["time"], start_time)
+    except ValueError:
+        logger.warning(
+            "Start time is greater than any time for the state transitions"
+        )
+        start_index = -1
+
+    try:
+        end_index = find_le(data["time"], end_time)
+    except ValueError:
+        logger.warning(
+            "end time is less than any time for the state transitions"
+        )
+        end_index = 0
+
+    logger.debug(
+        "starting index : {}\t ending index : {}".format(start_index, end_index)
+    )
+
+    data["time"] = data["time"][start_index:end_index]
+    data["curr"] = data["curr"][start_index:end_index]
+
+    return data
+
+
+def aggregate_stationary_idling_time(
+    deviceId: str, trip_start_time: str, trip_end_time: str
+) -> Dict:
+    """
+    Function finds the stationary and idling time for a trip
+
+    Parameters
+    ----------
+    deviceId : str
+        The deviceId for which we need to find the stationary and idle time
+    trip_start_time: str
+        The time of the start of the trip in YYYY-MM-DD HH:MM:SS.Used to limit the data for a specific trip.
+    trip_end_time: str
+        The time of the end of the trip in YYYY-MM-DD HH:MM:SS. Used to limit the data for a specific trip.
+
+    Returns
+    -------
+    Dict: {}
+
+    """
+    logger.debug("Function parameters are : \n{}".format(pformat(locals())))
+
+    idling_state_transition, stationary_state_transition = get_stationary_idling_state_transitions(
+        deviceId
+    )
+    print(
+        "Here",
+        stationary_state_transition,
+        idling_state_transition,
+        type(idling_state_transition["time"]),
+    )
+
+    if stationary_state_transition["time"]:
+        stationary_state_transition = keep_relevant_data_for_stationary_idling_btw_start_end_time(
+            trip_start_time, trip_end_time, stationary_state_transition
+        )
+
+        if stationary_state_transition["time"]:
+
+            # print(stationary_state_transition)
+            # find the total stationary time
+            total_stationary_time, post_correction_needed = find_actual_time_from_state_transitons(
+                stationary_state_transition
+            )
+            if post_correction_needed:
+                total_stationary_time += (
+                    string_time_to_unix_epoch(trip_end_time)
+                    - stationary_state_transition["time"][-1]
+                )
+        else:
+            logger.warning(
+                "stationary time data not found in given time range returning -1"
+            )
+            total_stationary_time = -1
+
+    else:
+        logger.warning("Stationary Time Data not found returning -1")
+        total_stationary_time = -1
+
+    if idling_state_transition["time"]:
+        # keep only the transitions for the times between a given trip
+        idling_state_transition = keep_relevant_data_for_stationary_idling_btw_start_end_time(
+            trip_start_time, trip_end_time, idling_state_transition
+        )
+        if idling_state_transition["time"]:
+
+            # find total idling time
+            total_idling_time, post_correction_needed = find_actual_time_from_state_transitons(
+                idling_state_transition
+            )
+
+            if post_correction_needed:
+                total_idling_time += (
+                    string_time_to_unix_epoch(trip_end_time)
+                    - idling_state_transition["time"][-1]
+                )
+
+        else:
+            logger.warning(
+                "idling time data not found in given time range returning -1"
+            )
+            total_idling_time = -1
+    else:
+        logger.warning("Idling Time Data not found returning -1")
+        total_idling_time = -1
+
+    return {
+        "stationary_time": round(total_stationary_time, 2),
+        "idling_time": round(total_idling_time, 2),
+    }
+
+
 def handler(event, context):
-    print(event)
+    # print(event)
     logging.info("Given API query : \n{}".format(pformat(event)))
 
     logging.info("Parsing event")
@@ -345,7 +637,7 @@ def handler(event, context):
         event["trip_time_diff"] = TRIP_TIME_DIFF
 
     # query device from dynamo and get all the spans
-    span_data = get_span_data_from_dynamo_dax(event["deviceId"])
+    span_data = get_span_data_from_dynamo_dax_using_ODM(event["deviceId"])
     logging.info("returned span data : {}".format(span_data))
 
     # # if no spans are returned, then the trips does not exist
@@ -361,13 +653,25 @@ def handler(event, context):
             event["trip_time_diff"],
         )
 
+        if trips == {}:
+            logging.warning("No Trips found")
+
         for trip_id in trips.keys():
             spanss = trips[trip_id]["spanId"]
 
             # find average speed
             trips[trip_id]["metrics"] = aggregate_speed_for_trip(spanss)
 
+            # find the stationary and idling time
+            stationry_idling_time_dict = aggregate_stationary_idling_time(
+                event["deviceId"],
+                trips[trip_id]["start_time"],
+                trips[trip_id]["end_time"],
+            )
+            trips[trip_id]["metrics"].update(stationry_idling_time_dict)
+
     trips = {"trips": list(trips.values())}
+
     pprint(trips)
 
     return trips
