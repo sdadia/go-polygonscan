@@ -5,7 +5,7 @@ phases:
     commands:
       # Update package managers
       - sudo apt-get update
-      - pip install --upgrade pip
+      - pip install pip==19.2.3
       - sudo apt-get install zip -y
 
       # Download project build/test requirements
