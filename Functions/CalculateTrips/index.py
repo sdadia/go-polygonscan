@@ -668,4 +668,4 @@ def handler(event, context):
 
     pprint(trips)
 
-    return json.dumps(trips)
+    return (trips)
