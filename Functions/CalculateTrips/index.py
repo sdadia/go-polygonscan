@@ -307,11 +307,18 @@ def preprocess_list_of_spans(list_of_spans_dict):
     logging.info("Formatting and sorting")
     for d in list_of_spans_dict:
         # print(d)
-        list_of_spans_dict[d]["start_time"] = datetime.datetime.strptime(
-            list_of_spans_dict[d]["start_time"], DATETIME_FORMAT
+        # list_of_spans_dict[d]["start_time"] = datetime.datetime.strptime(
+        # list_of_spans_dict[d]["start_time"], DATETIME_FORMAT
+        # ).timestamp()
+        # list_of_spans_dict[d]["end_time"] = datetime.datetime.strptime(
+        # list_of_spans_dict[d]["end_time"], DATETIME_FORMAT
+        # ).timestamp()
+
+        list_of_spans_dict[d]["start_time"] = ciso8601.parse_datetime(
+            list_of_spans_dict[d]["start_time"]
         ).timestamp()
-        list_of_spans_dict[d]["end_time"] = datetime.datetime.strptime(
-            list_of_spans_dict[d]["end_time"], DATETIME_FORMAT
+        list_of_spans_dict[d]["end_time"] = ciso8601(
+            list_of_spans_dict[d]["end_time"]
         ).timestamp()
 
     # sort according to the end time in descending order
