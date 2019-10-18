@@ -86,16 +86,10 @@ Resources:
         - 
           AttributeName: deviceId
           AttributeType: S
-        - 
-          AttributeName: spanId
-          AttributeType: S
       KeySchema:
         -
           AttributeName: deviceId
           KeyType: HASH
-        -
-          AttributeName: spanId
-          KeyType: RANGE
       ProvisionedThroughput:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
@@ -177,21 +171,21 @@ Resources:
       Timeout: 60
       CodeUri: Functions/CreateTimeseriesRecord/
       Runtime: python3.6
-      Role: !GetAtt LambdaExecutionRoleDDB.Arn 
+      Role: !GetAtt LambdaExecutionRoleDDBKinesis.Arn 
       Environment:
         Variables:
           SpanDynamoDBTableName: !Ref SpanTablePrefix
           OutputKinesisStreamName: !Ref TaggedDataStream
           
       # Input Event Pending Kinesis Stream Creation For Decompressed/Enriched Data 
-      # Events:
-      #   KinesisSource:
-      #     Type: Kinesis
-      #     Properties:
-      #       Stream: arn:aws:kinesis:us-east-1:123456789012:stream/my-stream
-      #       StartingPosition: TRIM_HORIZON
-      #       BatchSize: 100
-      #       Enabled: false
+      Events:
+        KinesisSource:
+          Type: Kinesis
+          Properties:
+            Stream: !Ref ProcessedTelematicsStream
+            StartingPosition: TRIM_HORIZON
+            BatchSize: 100
+            Enabled: true
 
   #
   # Invoked via external Lambda function
@@ -219,13 +213,14 @@ Resources:
   # Inserts calculated records into aggregation DDB table
   #
   SpeedAggregations:
+    DependsOn: TaggedDataStream
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
       Timeout: 60
       CodeUri: Functions/SpeedAggregations/
       Runtime: python3.6
-      Role: !GetAtt LambdaExecutionRoleDDB.Arn 
+      Role: !GetAtt LambdaExecutionRoleDDBKinesis.Arn 
       Environment:
         Variables:
           AggDynamoDBTableName: !Ref AggregationTablePrefix
@@ -240,8 +235,7 @@ Resources:
 
   #
   # Invoked via Kinesis Stream
-  # Calculates average speed value for a device in 1 minute aggregations
-  # Inserts calculated records into aggregation DDB table
+  # Inserts records into TS data store (DDB) in batches
   #
   InsertTSRecords:
     Type: AWS::Serverless::Function
@@ -250,7 +244,7 @@ Resources:
       Timeout: 60
       CodeUri: Functions/BatchInsertTSRecords/
       Runtime: python3.6
-      Role: !GetAtt LambdaExecutionRoleDDB.Arn 
+      Role: !GetAtt LambdaExecutionRoleDDBKinesis.Arn 
       Environment:
         Variables:
           TSDynamoDBTableName: !Ref TSTablePrefix
@@ -305,11 +299,65 @@ Resources:
               Service:
                 - lambda.amazonaws.com
 
-# Outputs:
+  #
+  # Execution Role for Lambda functions within this service that require
+  # access to Span/Timeseries DDB Tables along with Kinesis
+  #
+  LambdaExecutionRoleDDBKinesis:
+    Type: 'AWS::IAM::Role'
+    Description: IAM Execution Role for CreateTimeseries Record Function
+    Properties:
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      RoleName: !Sub
+        - ${ProjectId}-${ServiceName}-LambdaExecutionRoleDDBKinesis-${Stage}
+        - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName, Stage: !Ref Stage }
+      Policies:
+        - PolicyName: DDB
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:BatchReadItem'
+                Resource: 
+                  - !GetAtt SpanTable.Arn
+                  - !GetAtt TimeseriesTable.Arn
+                  - !GetAtt AggregateTable.Arn
+                Effect: Allow
+        - PolicyName: Kinesis
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 'kinesis:GetRecords'
+                  - 'kinesis:GetShardIterator'
+                  - 'kinesis:DescribeStream'
+                  - 'kinesis:ListStreams'
+                Resource: 
+                  - !GetAtt TaggedDataStream.Arn
+                  - !Ref ProcessedTelematicsStream
+                Effect: Allow
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
 
-  # CreateTimeseriesRecordExport:
-  #   # Used by the following:
-  #   # RestAPI: getVehicleTrips
-  #   Value: !Ref CreateTimeseriesRecord
-  #   Export:
-  #     Name: !Sub "${ProjectId}-CreateTimeseriesRecord-${Stage}"
+Outputs:
+
+  CalculateTripsRecordExport:
+    # Used by the following:
+    # RestAPI: getVehicleTrips
+    Value: !GetAtt CalculateTrips.Arn
+    Export:
+      Name: !Sub "${ProjectId}-CalculateTrips-${Stage}"
