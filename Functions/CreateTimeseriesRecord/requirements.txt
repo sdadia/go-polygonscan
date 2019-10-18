@@ -2,5 +2,5 @@
 amazon-dax-client
 boto3
 ciso8601
-pvapps-odm-dev==0.0.2
+# pvapps-odm-dev==0.0.2
 
