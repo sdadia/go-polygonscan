@@ -470,8 +470,6 @@ class Test_trip_calculator_pandas(unittest.TestCase):
             "trip_time_diff": 10,
         }
         ans = handler(event, None)
-        ans = json.loads(ans)
-        pprint(ans)
         expected_output = {
             "trips": [
                 {

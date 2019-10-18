@@ -53,8 +53,8 @@ for var in envVarsList:
         env_vars[var] = os.environ[var]
 
 env_vars["SpanDynamoDBTableName"] = str(SpanModel.Meta.table_name)
-# SpanModel.Meta.table_name = env_vars['SpanDynamoDBTableName'] +
-env_vars["AggDynamoDBTableName"] = str(AggregationModel.Meta.table_name)
+# SpanModel.Meta.table_name = env_vars['SpanDynamoDBTableName']
+env_vars["AggregateTable"] = str(AggregationModel.Meta.table_name)
 print(SpanModel.Meta.table_name)
 logging.info("Environment variables are : {}".format(env_vars))
 
@@ -253,7 +253,7 @@ def get_span_data_from_dynamo_dax(deviceId):
         )
     )
 
-    if not 'Item' in response.keys():
+    if "Item" not in response.keys():
         logging.warn("No Span Records exist for deviceId : {}".format(deviceId))
         return []
     else:
@@ -261,10 +261,12 @@ def get_span_data_from_dynamo_dax(deviceId):
             response["Item"], deserializer
         )
 
-        if 'spans' in deserialized_data.keys():
+        if "spans" in deserialized_data.keys():
             return json.loads(deserialized_data["spans"])
         else:
-            logging.warn("No Span Data exists for deviceId : {}".format(deviceId))
+            logging.warn(
+                "No Span Data exists for deviceId : {}".format(deviceId)
+            )
             return []
 
 
@@ -329,7 +331,9 @@ def get_speed_data_from_dynamo(spanIds):
             "Getting metric Data from DynaomoDB for spanId : {}".format(sp)
         )
         response = metric_table.query(
-            KeyConditionExpression=Key("spanId_MetricType").eq(str(sp + "_speed"))
+            KeyConditionExpression=Key("spanId_MetricType").eq(
+                str(sp + "_speed")
+            )
         )
 
         logging.info(
@@ -670,8 +674,4 @@ def handler(event, context):
 
     pprint(trips)
 
-<<<<<<< HEAD
-    return (trips)
-=======
     return trips
->>>>>>> origin/parking_idle_time
