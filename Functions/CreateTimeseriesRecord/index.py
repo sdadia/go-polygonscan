@@ -28,6 +28,7 @@ root = logging.getLogger()
 if root.handlers:
     for handler in root.handlers:
         root.removeHandler(handler)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
@@ -77,7 +78,11 @@ else:
 kinesis_client = boto3.client("kinesis")
 
 
+<<<<<<< HEAD
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+=======
+DATETIME_FOMRAT = "%Y-%m-%dT%H:%M:%SZ"
+>>>>>>> master
 
 ################################
 # ODM imports
