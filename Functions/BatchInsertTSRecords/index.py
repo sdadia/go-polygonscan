@@ -1,3 +1,4 @@
+import os
 import json
 import time
 from base64 import b64encode, b64decode
@@ -30,7 +31,8 @@ logging.basicConfig(
     format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger("index")
+logger = logging.getLogger(__name__)
+logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 dynamo_put_client = boto3.client("dynamodb")
 dynamodb_resource = boto3.resource("dynamodb")
@@ -41,7 +43,7 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 
 def extract_data_from_kinesis(event):
-    logging.info("Extracting data from Kinesis")
+    logger.info("Extracting data from Kinesis")
 
     all_records = []
     for r in event["Records"]:
@@ -51,9 +53,9 @@ def extract_data_from_kinesis(event):
         del data["gps"]
         all_records.append(data)
 
-    logging.debug("Extracted records are : \n{}".format(pformat(all_records)))
+    logger.debug("Extracted records are : \n{}".format(pformat(all_records)))
 
-    logging.info("Extracting data from Kinesis...Done")
+    logger.info("Extracting data from Kinesis...Done")
 
     return all_records
 
@@ -85,19 +87,18 @@ def convert_data_to_TSModelB(data, metric_name):
 
 
 def put_data_into_TS_dynamo_modelB(data):
-    logging.info('Data for conversion : \n{}'.format(pformat(data)))
+    logger.info("Data for conversion : \n{}".format(pformat(data)))
 
     # convert the data into TS model
     data_as_ODM_model = []
     for d in data:
-        print(d)
         d2 = {
             "did_date_measure": d["deviceId"]
             + "_"
             + d["timestamp"].split()[0]
             + "_"
             + "speed",
-            "tstime": ciso8601.parse_datetime(d['timestamp']).timestamp(),
+            "tstime": ciso8601.parse_datetime(d["timestamp"]).timestamp(),
             "span_id": d["spanId"],
             "value": str(d["speed"]),
         }
@@ -109,7 +110,7 @@ def put_data_into_TS_dynamo_modelB(data):
             + d["timestamp"].split()[0]
             + "_"
             + "latitude",
-            "tstime": ciso8601.parse_datetime(d['timestamp']).timestamp(),
+            "tstime": ciso8601.parse_datetime(d["timestamp"]).timestamp(),
             "span_id": d["spanId"],
             "value": str(d["lat"]),
         }
@@ -121,7 +122,7 @@ def put_data_into_TS_dynamo_modelB(data):
             + d["timestamp"].split()[0]
             + "_"
             + "longitude",
-            "tstime": ciso8601.parse_datetime(d['timestamp']).timestamp(),
+            "tstime": ciso8601.parse_datetime(d["timestamp"]).timestamp(),
             "span_id": d["spanId"],
             "value": str(d["lng"]),
         }
