@@ -6,25 +6,14 @@ import unittest
 import json
 from pprint import pprint, pformat
 
-logging.getLogger("speed_log").setLevel(logging.ERROR)
-
-log = logging.getLogger("test_speed_logger")
-log.setLevel(logging.ERROR)
+log = logging.getLogger(__name__)
+log.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 
 # this contains the code for trip calculation
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-
-sys.path.append("/home/sahil/Documents/aggregation/aggregation_lib/")
-try:
-    log.warning("Running Locally so module imports are different")
-    import aggregation_lib
-
-except Exception as e:
-    log.warning("Running on Lambda")
-    import aggregation_lib
 
 from Functions.SpeedAggregations.index import (
     handler,
@@ -34,7 +23,6 @@ from Functions.SpeedAggregations.index import (
     update_data_in_dynamo_using_ODM,
     DATETIME_FORMAT3,
 )
-from Functions import SpeedAggregations
 
 pprint(logging.log)
 

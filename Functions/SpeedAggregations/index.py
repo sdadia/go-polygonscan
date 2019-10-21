@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import pandas as pd
-import aggregation_lib
+from aggregation_lib import aggregation_lib
 
 
 # custom library imports
@@ -31,7 +31,9 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
-logger = logging.getLogger("speed_log")
+logger = logging.getLogger(__name__)
+logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
+
 
 ######################################################
 ##                                                  ##
