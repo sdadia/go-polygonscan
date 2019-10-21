@@ -1,5 +1,6 @@
 # regular imports
 from base64 import b64decode
+import ciso8601
 from pprint import pformat
 from pvapps_odm.Schema.models import AggregationModel
 from pvapps_odm.ddbcon import Connection
@@ -75,7 +76,7 @@ def get_metric_data_from_dynamo_batch_from_ODM_table_read(
     for x in unique_span_timestamps:
         print(x)
 
-        modified_ts = datetime.datetime.strptime(x[1], DATETIME_FORMAT).replace(
+        modified_ts = ciso8601.parse_datetime(x[1]).replace(
             tzinfo=datetime.timezone.utc, microsecond=0
         )
         all_data_for_query.append((x[0] + "_speed", modified_ts))
@@ -142,11 +143,16 @@ def format_event_data(extracted_data):
 
     # convert to df
     for x in extracted_data:
-        x["timestamp"] = datetime.datetime.strftime(
-            datetime.datetime.strptime(x["timestamp"], DATETIME_FORMAT)
-            .replace(tzinfo=datetime.timezone.utc, microsecond=0)
-            .replace(second=0),
-            DATETIME_FORMAT2,
+        # x["timestamp"] = datetime.datetime.strftime(
+        # datetime.datetime.strptime(x["timestamp"], DATETIME_FORMAT)
+        # .replace(tzinfo=datetime.timezone.utc, microsecond=0)
+        # .replace(second=0),
+        # DATETIME_FORMAT2,
+        # )
+        x["timestamp"] = str(
+            ciso8601.parse_datetime(x["timestamp"]).replace(
+                second=0, microsecond=0
+            )
         )
 
     logging.debug(
@@ -305,11 +311,14 @@ def update_data_in_dynamo_using_ODM(aggregate_values_as_list):
         # print(x)
         d2 = {
             "spanId_metricname": x["spanId_metricname"],
-            "timestamp": datetime.datetime.strptime(
-                x["timestamp"], DATETIME_FORMAT3
-            ).replace(
+            "timestamp": ciso8601.parse_datetime(x["timestamp"]).replace(
                 second=0, microsecond=0
             ),  # convert to datetime for storing in dynamo
+            # "timestamp": datetime.datetime.strptime(
+            # x["timestamp"], DATETIME_FORMAT3
+            # ).replace(
+            # second=0, microsecond=0
+            # ),  # convert to datetime for storing in dynamo
             "value": x["speed"],
             "count": x["count"],
         }

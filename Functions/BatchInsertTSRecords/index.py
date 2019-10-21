@@ -2,11 +2,11 @@ import json
 import time
 from base64 import b64encode, b64decode
 from multiprocessing import Process, Pipe
-import dynamo_helper
 from pprint import pprint, pformat
 import logging
 import boto3
 import itertools
+import ciso8601
 import datetime
 from pvapps_odm.Schema.models import TSModelB
 
@@ -97,11 +97,7 @@ def put_data_into_TS_dynamo_modelB(data):
             + d["timestamp"].split()[0]
             + "_"
             + "speed",
-            "tstime": time.mktime(
-                datetime.datetime.strptime(
-                    d["timestamp"], DATETIME_FORMAT
-                ).timetuple()
-            ),
+            "tstime": ciso8601.parse_datetime(d['timestamp']).timestamp(),
             "span_id": d["spanId"],
             "value": str(d["speed"]),
         }
@@ -113,11 +109,7 @@ def put_data_into_TS_dynamo_modelB(data):
             + d["timestamp"].split()[0]
             + "_"
             + "latitude",
-            "tstime": time.mktime(
-                datetime.datetime.strptime(
-                    d["timestamp"], DATETIME_FORMAT
-                ).timetuple()
-            ),
+            "tstime": ciso8601.parse_datetime(d['timestamp']).timestamp(),
             "span_id": d["spanId"],
             "value": str(d["lat"]),
         }
@@ -129,11 +121,7 @@ def put_data_into_TS_dynamo_modelB(data):
             + d["timestamp"].split()[0]
             + "_"
             + "longitude",
-            "tstime": time.mktime(
-                datetime.datetime.strptime(
-                    d["timestamp"], DATETIME_FORMAT
-                ).timetuple()
-            ),
+            "tstime": ciso8601.parse_datetime(d['timestamp']).timestamp(),
             "span_id": d["spanId"],
             "value": str(d["lng"]),
         }
