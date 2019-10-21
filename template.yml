@@ -34,13 +34,11 @@ Parameters:
     Description: Prefix for creation of TS span tables
     Default: SpanTable
       
-
   TSTablePrefix:
     Type: String
     Description: Prefix for creation of TS telematics tables
     Default: TelematicsTable
       
-
   AggregationTablePrefix:
     Type: String
     Description: Prefix for creation of TS telematics tables
@@ -51,7 +49,6 @@ Parameters:
     Description: Stream for CreateTimeseriesRecord to process 
     Default: NA
 
-  
   LogLevel:
     Type: String
     Description: Default logging level to be used by Lambda functions
@@ -61,7 +58,8 @@ Parameters:
 Globals:
   Function:
     Environment:
-      LOG_LEVEL: !Ref LogLevel
+      Variables:
+        LOG_LEVEL: !Ref LogLevel
 
 Resources:
 
