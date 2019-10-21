@@ -329,16 +329,14 @@ Resources:
               - Action:
                   - 'dynamodb:DeleteItem'
                   - 'dynamodb:GetItem'
+                  - 'dynamodb:DescribeTable'
                   - 'dynamodb:PutItem'
                   - 'dynamodb:Scan'
                   - 'dynamodb:UpdateItem'
                   - 'dynamodb:Query'
                   - 'dynamodb:BatchWriteItem'
                   - 'dynamodb:BatchReadItem'
-                Resource: 
-                  - !GetAtt SpanTable.Arn
-                  - !GetAtt TimeseriesTable.Arn
-                  - !GetAtt AggregateTable.Arn
+                Resource: '*'
                 Effect: Allow
         - PolicyName: Kinesis
           PolicyDocument:
@@ -349,6 +347,7 @@ Resources:
                   - 'kinesis:GetShardIterator'
                   - 'kinesis:DescribeStream'
                   - 'kinesis:ListStreams'
+                  - 'kinesis:PutRecords'
                 Resource: 
                   - !GetAtt TaggedDataStream.Arn
                   - !Ref ProcessedTelematicsStream
