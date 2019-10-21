@@ -11,7 +11,7 @@ from pvapps_odm.Schema.models import SpanModel
 
 os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
 
-logging.getLogger("index").setLevel(logging.DEBUG)
+logging.getLogger("Functions.CreateTimeseriesRecord.index").setLevel(logging.ERROR)
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,8 +29,8 @@ from Functions.CreateTimeseriesRecord.index import (
 )
 
 
-logger = logging.getLogger("test_span_calculator2")
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger()
+logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 import os
 import mock
