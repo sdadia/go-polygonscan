@@ -31,11 +31,11 @@ if root.handlers:
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
+    format="%(asctime)s.%(msecs)03d %(levelname)s %(filename)s %(module)s - %(funcName)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger("index")
-logger.setLevel(logging.ERROR)
+logger = logging.getLogger(__name__)
+logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 ######################################################
 ##                                                  ##
@@ -58,7 +58,6 @@ boto3.resource("dynamodb", region_name="us-east-1")
 deserializer = boto3.dynamodb.types.TypeDeserializer()
 serializer = boto3.dynamodb.types.TypeSerializer()
 
-from pvapps_odm.ddbcon import dynamo_dbcon
 
 ddb = dynamo_dbcon(SpanModel, conn=Connection())
 ddb.connect()
@@ -456,7 +455,7 @@ def update_span(spans, span_index, timestamps):
     format2 = "%Y-%m-%dT%H:%M:%SZ"
 
     if span_index is not None:
-        print(timestamps)
+        # print(timestamps)
         for t in timestamps:
             spans[span_index][t[0]] = t[1]
 
@@ -752,7 +751,7 @@ def handler(event, context):
     # Get all records from event #
     ##############################
     all_records = get_all_records_in_event(event)
-    print(all_records)
+    # print(all_records)
 
     ######################################
     # keep only valid values in a record #

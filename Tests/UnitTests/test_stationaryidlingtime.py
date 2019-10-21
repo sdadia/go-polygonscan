@@ -19,7 +19,6 @@ import os
 os.environ["localhost"] = "True"
 from pvapps_odm.Schema.models import StationaryIdlingModel
 
-
 # Function import to test
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -38,9 +37,6 @@ from Functions.StationaryIdlingTimeAggregations.index import (
 )
 
 
-logging.getLogger("Functions.StationaryIdlingTimeAggregations.index").setLevel(
-    os.environ.get("LOG_LEVEL", logging.INFO)
-)
 logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
@@ -345,8 +341,8 @@ class TestStationaryIdlingTimeAggregations(unittest.TestCase):
 
     # @classmethod
     # def tearDownClass(cls):
-        # time.sleep(5)
-        # StationaryIdlingModel.delete_table()
+    # time.sleep(5)
+    # StationaryIdlingModel.delete_table()
 
     # with open("sample_stationary_idling_time_input.json") as f:
     with open("sample_stationary_idling_time_input.json") as f:

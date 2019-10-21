@@ -21,6 +21,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 #######################
 # Database Connection #

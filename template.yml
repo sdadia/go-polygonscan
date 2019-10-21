@@ -51,6 +51,18 @@ Parameters:
     Description: Stream for CreateTimeseriesRecord to process 
     Default: NA
 
+  
+  LogLevel:
+    Type: String
+    Description: Default logging level to be used by Lambda functions
+    Default: ERROR
+
+
+Globals:
+  Function:
+    Environment:
+      LOG_LEVEL: !Ref LogLevel
+
 Resources:
 
   #
@@ -176,6 +188,7 @@ Resources:
             - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
             - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref SpanTablePrefix ,Stage: !Ref Stage }
           OutputKinesisStreamName: !Ref TaggedDataStream
+
           
       # Input Event Pending Kinesis Stream Creation For Decompressed/Enriched Data 
       Events:
@@ -292,7 +305,7 @@ Resources:
                   - 'dynamodb:UpdateItem'
                   - 'dynamodb:Query'
                   - 'dynamodb:BatchWriteItem'
-                  - 'dynamodb:BatchReadItem'
+                  - 'dynamodb:BatchGetItem'
                 Resource: 
                   - !GetAtt SpanTable.Arn
                   - !GetAtt TimeseriesTable.Arn
@@ -335,7 +348,7 @@ Resources:
                   - 'dynamodb:UpdateItem'
                   - 'dynamodb:Query'
                   - 'dynamodb:BatchWriteItem'
-                  - 'dynamodb:BatchReadItem'
+                  - 'dynamodb:BatchGetItem'
                 Resource: '*'
                 Effect: Allow
         - PolicyName: Kinesis
