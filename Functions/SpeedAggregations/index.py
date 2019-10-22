@@ -79,9 +79,10 @@ def get_metric_data_from_dynamo_batch_from_ODM_table_read(
         print(x)
 
         modified_ts = ciso8601.parse_datetime(x[1]).replace(
-            tzinfo=datetime.timezone.utc, microsecond=0
+            tzinfo=datetime.timezone.utc, microsecond=0, second=0
         )
         all_data_for_query.append((x[0] + "_speed", modified_ts))
+        print(all_data_for_query[-1])
 
     logger.info(
         "Converted timestamp to UTC format : \n{}".format(
@@ -89,7 +90,7 @@ def get_metric_data_from_dynamo_batch_from_ODM_table_read(
         )
     )
 
-    unique_span_timestamps_for_get = all_data_for_query
+    unique_span_timestamps_for_get = list(set(all_data_for_query))
 
     # extract the items in the list
 
@@ -153,7 +154,7 @@ def format_event_data(extracted_data):
         # )
         x["timestamp"] = str(
             ciso8601.parse_datetime(x["timestamp"]).replace(
-                second=0, microsecond=0
+                second=0, microsecond=0, tzinfo=datetime.timezone.utc
             )
         )
 
@@ -314,13 +315,8 @@ def update_data_in_dynamo_using_ODM(aggregate_values_as_list):
         d2 = {
             "spanId_metricname": x["spanId_metricname"],
             "timestamp": ciso8601.parse_datetime(x["timestamp"]).replace(
-                second=0, microsecond=0
+                second=0, microsecond=0, tzinfo=datetime.timezone.utc
             ),  # convert to datetime for storing in dynamo
-            # "timestamp": datetime.datetime.strptime(
-            # x["timestamp"], DATETIME_FORMAT3
-            # ).replace(
-            # second=0, microsecond=0
-            # ),  # convert to datetime for storing in dynamo
             "value": x["speed"],
             "count": x["count"],
         }
@@ -344,6 +340,7 @@ def handler(event, context):
     # Extract data from Kinesis #
     #############################
     extracted_data = extract_data_from_kinesis(event)
+    logger.debug("Extracted records from kinesis: {}".format(pformat((extracted_data))))
     logger.info("Len of Extracted records : {}".format((len(extracted_data))))
 
     ##############################
@@ -362,6 +359,13 @@ def handler(event, context):
             len(metrics_from_dynamo)
         )
     )
+
+    logger.debug(
+        "metrics received from dynamo : {}".format(
+            pformat(metrics_from_dynamo)
+        )
+    )
+
     metrics_from_dynamo_df = pd.DataFrame(metrics_from_dynamo)
     logger.info(
         "Metrics from Dynamo converted to dataframe : \n{}".format(
