@@ -7,11 +7,15 @@ import sys
 import unittest
 from pprint import pformat, pprint
 
+os.environ["localhost"] = "1"
+
 from pvapps_odm.Schema.models import SpanModel
 
 os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
 
-logging.getLogger("Functions.CreateTimeseriesRecord.index").setLevel(logging.ERROR)
+logging.getLogger("Functions.CreateTimeseriesRecord.index").setLevel(
+    logging.ERROR
+)
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -34,9 +38,26 @@ logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 import os
 import mock
+import time
+from pvapps_odm.ddbcon import dynamo_dbcon
+from pynamodb.connection import Connection
 
 
 class TestCreateTimeSeriesRecord(unittest.TestCase):
+
+    ddb = dynamo_dbcon(SpanModel, Connection(host="http://localhost:8000"))
+    ddb.connect()
+
+    @classmethod
+    def setUpClass(cls):
+        SpanModel.create_table()
+        time.sleep(0.5)
+
+    @classmethod
+    def tearDownClass(cls):
+        time.sleep(0.5)
+        SpanModel.delete_table()
+
     @mock.patch(
         "Functions.CreateTimeseriesRecord.index.get_spans_for_devices_from_DAX_batch_usingODM"
     )
@@ -281,6 +302,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
             ]
         ]
+        print(all_records)
 
         self.assertEqual(len(all_records), len(expected_all_records))
         for e1, e2 in zip(expected_all_records[0], all_records[0]):
@@ -940,8 +962,825 @@ class TestProcessSpans(unittest.TestCase):
         self.assertEqual(all_spans[0]["start_time"], array_start_time)
         self.assertEqual(all_spans[0]["end_time"], array_end_time)
 
+    @mock.patch(
+        "Functions.CreateTimeseriesRecord.index.get_all_records_in_event"
+    )
+    def test_multiple_device_per_invocation(self, mock_get_all_data):
+        """
+        This test is made to check if we can do multiple devices per invoation
+        """
+        messages = [
+            {
+                "message": {
+                    "timeStamp": "2019-11-01T01:32:21.017Z",
+                    "id": "c8af461d-2ffb-4b2d-a1e8-212148bb56dd",
+                    "from": "1da54fb7-b6c3-439b-ba59-de6f8a972ab0",
+                    "to": "ab9ynjbbyn7jl-ats.iot.us-east-1.amazonaws.com",
+                    "type": "event",
+                    "correlation": "",
+                    "expiration": "",
+                    "compressed": "true",
+                    "payload": {
+                        "type": "deviceStatus",
+                        "context": {
+                            "deviceTime": "2019-11-01T01:32:21.018Z",
+                            "tracking": [
+                                {
+                                    "timeStamp": "2019-11-01T01:32:11.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:11.000Z",
+                                        "lat": "5319.864100N",
+                                        "lng": "622.372860W",
+                                        "speed": "000.78",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T01:32:12.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:12.000Z",
+                                        "lat": "5319.864110N",
+                                        "lng": "622.373420W",
+                                        "speed": "000.56",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T01:32:13.007Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:13.000Z",
+                                        "lat": "5319.864150N",
+                                        "lng": "622.373920W",
+                                        "speed": "000.43",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T01:32:14.006Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:14.000Z",
+                                        "lat": "5319.864130N",
+                                        "lng": "622.374300W",
+                                        "speed": "000.46",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T01:32:15.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:15.000Z",
+                                        "lat": "5319.864180N",
+                                        "lng": "622.374770W",
+                                        "speed": "000.33",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T01:32:16.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:16.000Z",
+                                        "lat": "5319.863940N",
+                                        "lng": "622.374720W",
+                                        "speed": "000.62",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T01:32:17.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:17.000Z",
+                                        "lat": "5319.863770N",
+                                        "lng": "622.374630W",
+                                        "speed": "000.65",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T01:32:18.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:18.000Z",
+                                        "lat": "5319.863680N",
+                                        "lng": "622.374600W",
+                                        "speed": "000.49",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T01:32:19.012Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:19.000Z",
+                                        "lat": "5319.863710N",
+                                        "lng": "622.374660W",
+                                        "speed": "000.27",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T01:32:20.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:20.000Z",
+                                        "lat": "5319.863590N",
+                                        "lng": "622.374400W",
+                                        "speed": "000.66",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T01:32:21.011Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T01:32:21.000Z",
+                                        "lat": "5319.863600N",
+                                        "lng": "622.374410W",
+                                        "speed": "000.36",
+                                        "course": "00.000",
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                },
+                "vehicleId": "b9da1acd-c77f-4b6a-a942-e8d4b30ae65e",
+                "orgId": "52a7f45f-db9b-4c6d-ab76-0f12a502598b",
+                "nodeId": "cdf83953-557c-4d42-b732-3e5a8bd147c9",
+                "deviceId": "83a903e0-2ab5-478b-a3c8-c657626f5c37",
+            },
+            {
+                "message": {
+                    "timeStamp": "2019-11-01T08:13:31.006Z",
+                    "id": "0eafdc31-b3b5-401f-a617-82fcb289c912",
+                    "from": "0551fd10-326a-4207-9c68-79e0bba85e0a",
+                    "to": "ab9ynjbbyn7jl-ats.iot.us-east-1.amazonaws.com",
+                    "type": "event",
+                    "correlation": "",
+                    "expiration": "",
+                    "compressed": "true",
+                    "payload": {
+                        "type": "deviceStatus",
+                        "context": {
+                            "deviceTime": "2019-11-01T08:13:31.007Z",
+                            "tracking": [
+                                {
+                                    "timeStamp": "2019-11-01T08:13:21.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:21.000Z",
+                                        "lat": "5334.995600N",
+                                        "lng": "607.864300W",
+                                        "speed": "000.30",
+                                        "course": "332.770",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:22.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:22.000Z",
+                                        "lat": "5334.995600N",
+                                        "lng": "607.864300W",
+                                        "speed": "000.15",
+                                        "course": "270.740",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:23.008Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:23.000Z",
+                                        "lat": "5334.995700N",
+                                        "lng": "607.864400W",
+                                        "speed": "000.20",
+                                        "course": "300.410",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:24.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:24.000Z",
+                                        "lat": "5334.995700N",
+                                        "lng": "607.864400W",
+                                        "speed": "000.07",
+                                        "course": "304.250",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:25.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:25.000Z",
+                                        "lat": "5334.995700N",
+                                        "lng": "607.864400W",
+                                        "speed": "000.11",
+                                        "course": "245.650",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:14:24.945Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:26.000Z",
+                                        "lat": "5334.995700N",
+                                        "lng": "607.864500W",
+                                        "speed": "000.44",
+                                        "course": "329.880",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:27.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:27.000Z",
+                                        "lat": "5334.995800N",
+                                        "lng": "607.864500W",
+                                        "speed": "000.15",
+                                        "course": "250.390",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:28.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:28.000Z",
+                                        "lat": "5334.995800N",
+                                        "lng": "607.864600W",
+                                        "speed": "000.26",
+                                        "course": "258.630",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:29.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:29.000Z",
+                                        "lat": "5334.995800N",
+                                        "lng": "607.864600W",
+                                        "speed": "000.31",
+                                        "course": "336.340",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:30.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:30.000Z",
+                                        "lat": "5334.995800N",
+                                        "lng": "607.864700W",
+                                        "speed": "000.39",
+                                        "course": "338.260",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:31.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:31.000Z",
+                                        "lat": "5334.995900N",
+                                        "lng": "607.864700W",
+                                        "speed": "000.31",
+                                        "course": "349.720",
+                                    },
+                                },
+                            ],
+                            "faults": [
+                                {
+                                    "type": "storage",
+                                    "status": "missing",
+                                    "context": {
+                                        "medium": "SD",
+                                        "storageClass": "secondary",
+                                        "id": "2",
+                                    },
+                                }
+                            ],
+                        },
+                    },
+                },
+                "vehicleId": "b9da1acd-c77f-4b6a-a942-e8d4b30ae65e",
+                "orgId": "52a7f45f-db9b-4c6d-ab76-0f12a502598b",
+                "nodeId": "cdf83953-557c-4d42-b732-3e5a8bd147c9",
+                "deviceId": "1968306a-add5-42e6-958f-423caac6d4e1",
+            },
+            {
+                "message": {
+                    "timeStamp": "2019-11-01T08:13:20.006Z",
+                    "id": "0eafdc31-b3b5-401f-a617-82fcb289c912",
+                    "from": "0551fd10-326a-4207-9c68-79e0bba85e0a",
+                    "to": "ab9ynjbbyn7jl-ats.iot.us-east-1.amazonaws.com",
+                    "type": "event",
+                    "correlation": "",
+                    "expiration": "",
+                    "compressed": "true",
+                    "payload": {
+                        "type": "deviceStatus",
+                        "context": {
+                            "deviceTime": "2019-11-01T08:13:20.007Z",
+                            "tracking": [
+                                {
+                                    "timeStamp": "2019-11-01T08:13:10.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:10.000Z",
+                                        "lat": "5334.994800N",
+                                        "lng": "607.864400W",
+                                        "speed": "000.19",
+                                        "course": "00.940",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:11.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:11.000Z",
+                                        "lat": "5334.994700N",
+                                        "lng": "607.864200W",
+                                        "speed": "000.28",
+                                        "course": "327.100",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:12.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:12.000Z",
+                                        "lat": "5334.994800N",
+                                        "lng": "607.863900W",
+                                        "speed": "000.57",
+                                        "course": "18.810",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:13.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:13.000Z",
+                                        "lat": "5334.994800N",
+                                        "lng": "607.864000W",
+                                        "speed": "000.69",
+                                        "course": "350.840",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:14.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:14.000Z",
+                                        "lat": "5334.994900N",
+                                        "lng": "607.864000W",
+                                        "speed": "000.89",
+                                        "course": "348.340",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:15.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:15.000Z",
+                                        "lat": "5334.995000N",
+                                        "lng": "607.864100W",
+                                        "speed": "000.78",
+                                        "course": "00.920",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:16.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:16.000Z",
+                                        "lat": "5334.995100N",
+                                        "lng": "607.864100W",
+                                        "speed": "000.94",
+                                        "course": "356.770",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:17.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:17.000Z",
+                                        "lat": "5334.995300N",
+                                        "lng": "607.864100W",
+                                        "speed": "001.02",
+                                        "course": "343.340",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:18.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:18.000Z",
+                                        "lat": "5334.995400N",
+                                        "lng": "607.864200W",
+                                        "speed": "000.80",
+                                        "course": "350.930",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:19.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:19.000Z",
+                                        "lat": "5334.995600N",
+                                        "lng": "607.864200W",
+                                        "speed": "000.31",
+                                        "course": "307.750",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:20.003Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:20.000Z",
+                                        "lat": "5334.995600N",
+                                        "lng": "607.864300W",
+                                        "speed": "000.07",
+                                        "course": "193.970",
+                                    },
+                                },
+                            ],
+                            "faults": [
+                                {
+                                    "type": "storage",
+                                    "status": "missing",
+                                    "context": {
+                                        "medium": "SD",
+                                        "storageClass": "secondary",
+                                        "id": "2",
+                                    },
+                                }
+                            ],
+                        },
+                    },
+                },
+                "vehicleId": "b9da1acd-c77f-4b6a-a942-e8d4b30ae65e",
+                "orgId": "52a7f45f-db9b-4c6d-ab76-0f12a502598b",
+                "nodeId": "cdf83953-557c-4d42-b732-3e5a8bd147c9",
+                "deviceId": "1968306a-add5-42e6-958f-423caac6d4e1",
+            },
+            {
+                "message": {
+                    "timeStamp": "2019-11-01T08:14:02.013Z",
+                    "id": "c8af461d-2ffb-4b2d-a1e8-212148bb56dd",
+                    "from": "1da54fb7-b6c3-439b-ba59-de6f8a972ab0",
+                    "to": "ab9ynjbbyn7jl-ats.iot.us-east-1.amazonaws.com",
+                    "type": "event",
+                    "correlation": "",
+                    "expiration": "",
+                    "compressed": "true",
+                    "payload": {
+                        "type": "deviceStatus",
+                        "context": {
+                            "deviceTime": "2019-11-01T08:14:02.014Z",
+                            "tracking": [
+                                {
+                                    "timeStamp": "2019-11-01T08:13:52.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:52.000Z",
+                                        "lat": "5319.859140N",
+                                        "lng": "622.365780W",
+                                        "speed": "001.18",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:53.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:53.000Z",
+                                        "lat": "5319.858540N",
+                                        "lng": "622.365780W",
+                                        "speed": "001.12",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:54.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:54.000Z",
+                                        "lat": "5319.857950N",
+                                        "lng": "622.365780W",
+                                        "speed": "001.19",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:55.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:55.000Z",
+                                        "lat": "5319.857480N",
+                                        "lng": "622.365780W",
+                                        "speed": "000.90",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:56.007Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:56.000Z",
+                                        "lat": "5319.857060N",
+                                        "lng": "622.365770W",
+                                        "speed": "000.62",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:57.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:57.000Z",
+                                        "lat": "5319.856800N",
+                                        "lng": "622.365750W",
+                                        "speed": "000.38",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:58.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:58.000Z",
+                                        "lat": "5319.856530N",
+                                        "lng": "622.365760W",
+                                        "speed": "000.63",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:13:59.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:13:59.000Z",
+                                        "lat": "5319.856160N",
+                                        "lng": "622.365760W",
+                                        "speed": "000.80",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:14:00.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:14:00.000Z",
+                                        "lat": "5319.855950N",
+                                        "lng": "622.365750W",
+                                        "speed": "000.56",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:14:01.004Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:14:01.000Z",
+                                        "lat": "5319.855790N",
+                                        "lng": "622.365760W",
+                                        "speed": "000.32",
+                                        "course": "00.000",
+                                    },
+                                },
+                                {
+                                    "timeStamp": "2019-11-01T08:14:02.005Z",
+                                    "acc": "1",
+                                    "io": "11111111",
+                                    "gps": {
+                                        "status": "valid",
+                                        "gpsTime": "2019-11-01T08:14:02.000Z",
+                                        "lat": "5319.855630N",
+                                        "lng": "622.365800W",
+                                        "speed": "000.17",
+                                        "course": "00.000",
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                },
+                "vehicleId": "b9da1acd-c77f-4b6a-a942-e8d4b30ae65e",
+                "orgId": "52a7f45f-db9b-4c6d-ab76-0f12a502598b",
+                "nodeId": "cdf83953-557c-4d42-b732-3e5a8bd147c9",
+                "deviceId": "83a903e0-2ab5-478b-a3c8-c657626f5c37",
+            },
+        ]
+
+        all_records = []
+        for decoded_rec in messages:
+
+            for d in decoded_rec["message"]["payload"]["context"]["tracking"]:
+                d["deviceId"] = decoded_rec["message"]["from"]
+
+            data = {
+                "deviceId": decoded_rec["deviceId"],
+                "data": decoded_rec["message"]["payload"]["context"][
+                    "tracking"
+                ],
+            }
+
+            all_records.append(data["data"])
+        mock_get_all_data.return_value = all_records
+
+        handler(None, None)
+
+        ddb = dynamo_dbcon(SpanModel, Connection(host="http://localhost:8000"))
+        ddb.connect()
+
+        ans = ddb.get_object("0551fd10-326a-4207-9c68-79e0bba85e0a", None)
+        ans = ans.attribute_values
+        pprint(ans)
+        expected_1 = {
+            "deviceId": "0551fd10-326a-4207-9c68-79e0bba85e0a",
+            "spans": [
+                {
+                    "start_time": datetime.datetime(
+                        2019,
+                        11,
+                        1,
+                        8,
+                        13,
+                        10,
+                        3000,
+                        tzinfo=datetime.timezone.utc,
+                    ),
+                    "end_time": datetime.datetime(
+                        2019,
+                        11,
+                        1,
+                        8,
+                        13,
+                        31,
+                        3000,
+                        tzinfo=datetime.timezone.utc,
+                    ),
+                    "spanId": "3d82d2e9-f42f-4889-8142-3d5e719d4b2d",
+                }
+            ],
+            "modified": 1,
+        }
+        self.assertEqual(ans["deviceId"], expected_1["deviceId"])
+        for sp1, sp2 in zip(json.loads(ans["spans"]), (expected_1["spans"])):
+            self.assertEqual(sorted(sp1), sorted(sp2))
+
+        ans = ddb.get_object("1da54fb7-b6c3-439b-ba59-de6f8a972ab0", None)
+        ans = ans.attribute_values
+        pprint(ans)
+        expected_2 = {
+            "deviceId": "1da54fb7-b6c3-439b-ba59-de6f8a972ab0",
+            "spans": [
+                {
+                    "start_time": datetime.datetime(
+                        2019,
+                        11,
+                        1,
+                        1,
+                        32,
+                        11,
+                        4000,
+                        tzinfo=datetime.timezone.utc,
+                    ),
+                    "end_time": datetime.datetime(
+                        2019,
+                        11,
+                        1,
+                        1,
+                        32,
+                        21,
+                        11000,
+                        tzinfo=datetime.timezone.utc,
+                    ),
+                    "spanId": "32bb8e03-453d-40ff-bb3c-7bd393afe89b",
+                },
+                {
+                    "start_time": datetime.datetime(
+                        2019,
+                        11,
+                        1,
+                        8,
+                        13,
+                        52,
+                        5000,
+                        tzinfo=datetime.timezone.utc,
+                    ),
+                    "end_time": datetime.datetime(
+                        2019,
+                        11,
+                        1,
+                        8,
+                        14,
+                        2,
+                        5000,
+                        tzinfo=datetime.timezone.utc,
+                    ),
+                    "spanId": "b07ffca5-d574-4250-bd97-9da1fd400241",
+                },
+            ],
+            "modified": 1,
+        }
+        self.assertEqual(ans["deviceId"], expected_2["deviceId"])
+        for sp1, sp2 in zip(json.loads(ans["spans"]), (expected_2["spans"])):
+            self.assertEqual(sorted(sp1), sorted(sp2))
+
 
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestCreateTimeSeriesRecord))
+    suite.addTest(unittest.makeSuite(TestProcessSpans))
     return suite
