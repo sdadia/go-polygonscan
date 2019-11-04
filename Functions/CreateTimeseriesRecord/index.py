@@ -556,22 +556,25 @@ def get_all_records_in_event(event):
     all_records = []  # holds all records
     for rec in event["Records"]:
 
-        decoded_rec = json.loads(
-            b64decode(rec["kinesis"]["data"]).decode("utf-8")
-        )
+        try:
+            decoded_rec = json.loads(
+                b64decode(rec["kinesis"]["data"]).decode("utf-8")
+            )
+            print(decoded_rec)
+            for d in decoded_rec["message"]["payload"]["context"]["tracking"]:
+                d["deviceId"] = decoded_rec["message"]["from"]
 
-        for d in decoded_rec["message"]["payload"]["context"]["tracking"]:
-            d["deviceId"] = decoded_rec["message"]["from"]
+            data = {
+                "deviceId": decoded_rec["deviceId"],
+                "data": decoded_rec["message"]["payload"]["context"]["tracking"],
+            }
+            all_records.append(data["data"])
+            # all_records.append(decoded_rec)
 
-        data = {
-            "deviceId": decoded_rec["deviceId"],
-            "data": decoded_rec["message"]["payload"]["context"]["tracking"],
-        }
-        all_records.append(data["data"])
-        # all_records.append(decoded_rec)
-
-        logger.debug("Decoded reCord is : \n{}".format(pformat(decoded_rec)))
-        logger.info("Len of decoded record is : {}".format(len(decoded_rec)))
+            logger.debug("Decoded Record is : \n{}".format(pformat(decoded_rec)))
+            logger.info("Len of decoded record is : {}".format(len(decoded_rec)))
+        except Exception as e:
+            logger.error('Unable to process message: {}'.format(e))
 
     logger.info("Getting all the records from event...Done")
 

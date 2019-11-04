@@ -88,11 +88,12 @@ def convert_data_to_TSModelB(data, metric_name):
 
 def put_data_into_TS_dynamo_modelB(data):
     logger.info("Data for conversion : \n{}".format(pformat(data)))
+    unique_data={}
 
     # convert the data into TS model
     data_as_ODM_model = []
     for d in data:
-        d2 = {
+        d2_speed = {
             "did_date_measure": d["deviceId"]
             + "_"
             + d["timestamp"].split()[0]
@@ -102,9 +103,9 @@ def put_data_into_TS_dynamo_modelB(data):
             "span_id": d["spanId"],
             "value": str(d["speed"]),
         }
-        data_as_ODM_model.append(TSModelB(**d2))
+        # data_as_ODM_model.append(TSModelB(**d2_speed))
 
-        d2 = {
+        d2_lat = {
             "did_date_measure": d["deviceId"]
             + "_"
             + d["timestamp"].split()[0]
@@ -114,9 +115,9 @@ def put_data_into_TS_dynamo_modelB(data):
             "span_id": d["spanId"],
             "value": str(d["lat"]),
         }
-        data_as_ODM_model.append(TSModelB(**d2))
+        # data_as_ODM_model.append(TSModelB(**d2_lat))
 
-        d2 = {
+        d2_long = {
             "did_date_measure": d["deviceId"]
             + "_"
             + d["timestamp"].split()[0]
@@ -126,7 +127,29 @@ def put_data_into_TS_dynamo_modelB(data):
             "span_id": d["spanId"],
             "value": str(d["lng"]),
         }
-        data_as_ODM_model.append(TSModelB(**d2))
+        # data_as_ODM_model.append(TSModelB(**d2_long))
+
+        # If records exist in unique_data, then update 
+        # Else add object
+        if unique_data.get(d["deviceId"],False) is not False:
+
+            unique_data[d["deviceId"]][ciso8601.parse_datetime(d["timestamp"]).timestamp()]=[
+                TSModelB(**d2_speed),
+                TSModelB(**d2_lat),
+                TSModelB(**d2_long)
+            ] 
+        else:
+            unique_data[d["deviceId"]] = {
+                ciso8601.parse_datetime(d["timestamp"]).timestamp(): [
+                    TSModelB(**d2_speed),
+                    TSModelB(**d2_lat),
+                    TSModelB(**d2_long)
+                ]
+            }
+
+    for device_id in unique_data.keys():
+        for ts in unique_data[device_id]:
+            data_as_ODM_model = data_as_ODM_model + unique_data[device_id][ts]
 
     ddb.session.add_items(data_as_ODM_model)
     ddb.session.commit_items()
