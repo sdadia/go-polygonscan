@@ -5,6 +5,7 @@ import mock
 import os
 import sys
 import unittest
+import ciso8601
 import json
 from pprint import pprint, pformat
 
@@ -62,34 +63,34 @@ class Test_speed_aggregation(unittest.TestCase):
                 {
                     "spanId": "123",
                     "speed": "0.28",
-                    "timestamp": "2019-05-22 10:45:05.154000",
+                    "timestamp": "2019-05-22T10:45:05.154000Z",
                 },
                 {
                     "spanId": "123",
                     "speed": "0.83",
-                    "timestamp": "2019-05-22 10:45:06.154000",
+                    "timestamp": "2019-05-22T10:45:06.154000Z",
                 },
                 {
                     "spanId": "123",
                     "speed": "0.52",
-                    "timestamp": "2019-05-22 10:45:07.154000",
+                    "timestamp": "2019-05-22T10:45:07.154000Z",
                 },
             ],
             [
                 {
                     "spanId": "123",
                     "speed": "0.28",
-                    "timestamp": "2019-05-22 10:45:05.154000",
+                    "timestamp": "2019-05-22T10:45:05.154000Z",
                 },
                 {
                     "spanId": "123",
                     "speed": "0.83",
-                    "timestamp": "2019-05-22 10:45:06.154000",
+                    "timestamp": "2019-05-22T10:45:06.154000Z",
                 },
                 {
                     "spanId": "123",
                     "speed": "0.52",
-                    "timestamp": "2019-05-22 10:45:07.154000",
+                    "timestamp": "2019-05-22T10:45:07.154000Z",
                 },
             ],
         ]
@@ -259,19 +260,19 @@ class Test_speed_aggregation(unittest.TestCase):
     def test_update_data_in_dynamo_using_ODM(self):
         data = [
             {
-                "timestamp": "2019-05-22 10:44:07",
+                "timestamp": str(ciso8601.parse_datetime("2019-05-22T10:44:07Z")),
                 "spanId_metricname": "123_speed",
                 "speed": 120.0,
                 "count": 1.0,
             },
             {
-                "timestamp": "2019-05-22 10:45:07",
+                "timestamp": str(ciso8601.parse_datetime("2019-05-22T10:45:07Z")),
                 "spanId_metricname": "123_speed",
                 "speed": 160.0,
                 "count": 2.0,
             },
             {
-                "timestamp": "2019-05-22 10:46:07",
+                "timestamp": str(ciso8601.parse_datetime("2019-05-22T10:46:07Z")),
                 "spanId_metricname": "122_speed",
                 "speed": 280.0,
                 "count": 3.0,
@@ -280,19 +281,19 @@ class Test_speed_aggregation(unittest.TestCase):
 
         expected_output = [
             {
-                "timestamp": "2019-05-22 10:44:00",
+                "timestamp": (ciso8601.parse_datetime("2019-05-22T10:44:00Z")),
                 "spanId_metricname": "123_speed",
                 "value": 120.0,
                 "count": 1.0,
             },
             {
-                "timestamp": "2019-05-22 10:45:00",
+                "timestamp": (ciso8601.parse_datetime("2019-05-22T10:45:00Z")),
                 "spanId_metricname": "123_speed",
                 "value": 160.0,
                 "count": 2.0,
             },
             {
-                "timestamp": "2019-05-22 10:46:00",
+                "timestamp": (ciso8601.parse_datetime("2019-05-22T10:46:00Z")),
                 "spanId_metricname": "122_speed",
                 "value": 280.0,
                 "count": 3.0,
@@ -302,7 +303,8 @@ class Test_speed_aggregation(unittest.TestCase):
         print(ans)
         ans = [x.attribute_values for x in ans]
         for e1, e2 in zip(expected_output, ans):
-            e2["timestamp"] = str(e2["timestamp"])
+            print(e1, e2)
+            # e2["timestamp"] = str(e2["timestamp"])
             self.assertEqual(e1, e2)
 
 

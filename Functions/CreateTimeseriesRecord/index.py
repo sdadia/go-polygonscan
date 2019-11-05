@@ -555,26 +555,24 @@ def get_all_records_in_event(event):
 
     all_records = []  # holds all records
     for rec in event["Records"]:
+        data = {}
 
-        try:
-            decoded_rec = json.loads(
-                b64decode(rec["kinesis"]["data"]).decode("utf-8")
-            )
-            print(decoded_rec)
-            for d in decoded_rec["message"]["payload"]["context"]["tracking"]:
-                d["deviceId"] = decoded_rec["message"]["from"]
+        decoded_rec = json.loads(
+            b64decode(rec["kinesis"]["data"]).decode("utf-8")
+        )
 
-            data = {
-                "deviceId": decoded_rec["deviceId"],
-                "data": decoded_rec["message"]["payload"]["context"]["tracking"],
-            }
-            all_records.append(data["data"])
-            # all_records.append(decoded_rec)
+        for d in decoded_rec["message"]["payload"]["context"]["tracking"]:
+            d["deviceId"] = decoded_rec["message"]["from"]
 
-            logger.debug("Decoded Record is : \n{}".format(pformat(decoded_rec)))
-            logger.info("Len of decoded record is : {}".format(len(decoded_rec)))
-        except Exception as e:
-            logger.error('Unable to process message: {}'.format(e))
+        data = {
+            "deviceId": decoded_rec["deviceId"],
+            "data": decoded_rec["message"]["payload"]["context"]["tracking"],
+        }
+        all_records.append(data["data"])
+        # all_records.append(decoded_rec)
+
+        logger.debug("Decoded record is : \n{}".format(pformat(decoded_rec)))
+        logger.info("Len of decoded record is : {}".format(len(decoded_rec)))
 
     logger.info("Getting all the records from event...Done")
 
@@ -677,11 +675,13 @@ def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
     for m_dev in modified_devices_span_dict:
         # convert time to sstring
         for sp in m_dev["spans"]:
-            sp["start_time"] = (sp["start_time"]).strftime(DATETIME_FORMAT)
+            # sp["start_time"] = (sp["start_time"]).strftime(DATETIME_FORMAT)
+            sp["start_time"] = str(sp["start_time"])
             # sp["start_time"] = (sp["start_time"]).isoformat()
 
             # sp["end_time"] = (sp["end_time"]).isoformat()
-            sp["end_time"] = (sp["end_time"]).strftime(DATETIME_FORMAT)
+            sp["end_time"] = str(sp["end_time"])
+            # sp["end_time"] = (sp["end_time"]).strftime(DATETIME_FORMAT)
             # sp["start_time"] = datetime.datetime.strfmt(sp["start_time"], DATETIME_FORMAT)
             # sp["end_time"] = str(sp["end_time"])
 
@@ -747,8 +747,7 @@ def send_tagged_data_to_kinesis(tagged_data):
 
 def handler(event, context):
     logger.info("Starting handler")
-
-    logger.info("Event is : {}".format(event))
+    logger.error("Event is : {}".format(event))
 
     ##############################
     # Get all records from event #
@@ -793,6 +792,8 @@ def handler(event, context):
 
     # For each record, find the span
     for rec_index, rec in enumerate(all_valid_records):
+        # print(rec_index)
+        # pprint(rec[0])
         logger.info("Processing record number : {}".format(rec_index))
 
         rec = format_data_pts_in_rec(rec)
@@ -847,25 +848,50 @@ def handler(event, context):
         ###################################
         # update the global list of spans #
         ###################################
-        if modified:
-            if device_spans_dict != []:
-                for i in device_spans_dict:
-                    if i["deviceId"] == current_rec_device_id_spans:
-                        logger.info(
-                            "Found the span - updating their all span and adding modified tag"
-                        )
-                        i["spans"] = all_spans
-                        i["modified"] = 1
-            else:
-                device_spans_dict.append(
-                    {
-                        "deviceId": current_rec_device_id,
-                        "spans": all_spans,
-                        "modified": 1,
-                    }
-                )
+        logger.info("Current deviceId : {}".format(current_rec_device_id))
+        logger.info(
+            "Current deviceId spans are : {}".format(
+                current_rec_device_id_spans
+            )
+        )
+        logger.info("Updated Spans Device Dict : {}".format(device_spans_dict))
+        # print(current_rec_device_id)
+
+        if device_spans_dict != []:
+            for i in device_spans_dict:
+                # print(i)
+                if i["deviceId"] == current_rec_device_id:
+                    logger.info(
+                        "Found the span - updating their all span and adding modified tag"
+                    )
+                    i["spans"] = all_spans
+                    i["modified"] = 1
+                elif i == device_spans_dict[-1]:
+                    device_spans_dict.append(
+                        {
+                            "deviceId": current_rec_device_id,
+                            "spans": all_spans,
+                            "modified": 1,
+                        }
+                    )
+        else:
+            device_spans_dict.append(
+                {
+                    "deviceId": current_rec_device_id,
+                    "spans": all_spans,
+                    "modified": 1,
+                }
+            )
 
         logger.info("modified Updated span dict : {}".format(device_spans_dict))
+
+        logger.info("Here")
+        device_spans_dict = list(
+            {v["deviceId"]: v for v in device_spans_dict}.values()
+        )
+        logger.info("Device Spans after duplicate removal : {}".format(device_spans_dict))
+
+        # clean up the list of d
 
         ##############################################
         # Tag all valid points in the current record #
