@@ -327,7 +327,7 @@ def update_data_in_dynamo_using_ODM(aggregate_values_as_list):
             unique_data[key_name] = d2
             data_as_ODM_model.append(AggregationModel(**d2))
         else:
-            print("Duplicate data found for : {}".format(d2))
+            logging.warning("Duplicate data found for : {}".format(d2))
 
     logging.debug("As aggregate model : {}".format(data_as_ODM_model))
 
