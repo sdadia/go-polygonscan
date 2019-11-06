@@ -1,7 +1,7 @@
 # regular imports
 from base64 import b64decode
 import ciso8601
-from pprint import pformat
+from pprint import pformat, pprint
 from pvapps_odm.Schema.models import AggregationModel
 from pvapps_odm.ddbcon import Connection
 from pvapps_odm.ddbcon import dynamo_dbcon
@@ -304,6 +304,7 @@ def update_data_in_dynamo_using_ODM(aggregate_values_as_list):
     Converts the aggregate values to DynamoDB's client PutItemRequest format for
     sending data in batches.
     """
+    unique_data = {}
 
     logger.info("Updating aggregate tables using ODM")
 
@@ -320,8 +321,13 @@ def update_data_in_dynamo_using_ODM(aggregate_values_as_list):
             "value": x["speed"],
             "count": x["count"],
         }
+        key_name = d2["spanId_metricname"] + "_" + str(d2["timestamp"])
 
-        data_as_ODM_model.append(AggregationModel(**d2))
+        if unique_data.get(key_name, False) is False:
+            unique_data[key_name] = d2
+            data_as_ODM_model.append(AggregationModel(**d2))
+        else:
+            print("Duplicate data found for : {}".format(d2))
 
     logging.debug("As aggregate model : {}".format(data_as_ODM_model))
 
@@ -340,7 +346,9 @@ def handler(event, context):
     # Extract data from Kinesis #
     #############################
     extracted_data = extract_data_from_kinesis(event)
-    logger.debug("Extracted records from kinesis: {}".format(pformat((extracted_data))))
+    logger.debug(
+        "Extracted records from kinesis: {}".format(pformat((extracted_data)))
+    )
     logger.info("Len of Extracted records : {}".format((len(extracted_data))))
 
     ##############################
@@ -361,9 +369,7 @@ def handler(event, context):
     )
 
     logger.debug(
-        "metrics received from dynamo : {}".format(
-            pformat(metrics_from_dynamo)
-        )
+        "metrics received from dynamo : {}".format(pformat(metrics_from_dynamo))
     )
 
     metrics_from_dynamo_df = pd.DataFrame(metrics_from_dynamo)
