@@ -279,6 +279,14 @@ class Test_speed_aggregation(unittest.TestCase):
             },
             {
                 "timestamp": str(
+                    ciso8601.parse_datetime("2019-05-22T10:44:07Z")
+                ),
+                "spanId_metricname": "123_speed",
+                "speed": 120.0,
+                "count": 1.0,
+            },
+            {
+                "timestamp": str(
                     ciso8601.parse_datetime("2019-05-22T10:45:07Z")
                 ),
                 "spanId_metricname": "123_speed",
