@@ -26,7 +26,7 @@ phases:
     commands:
       # Build Service Template for usage in deployment
       - sam build --debug
-      - sam package --s3-bucket $S3_BUCKET --output-template trip-calculation.yml --debug
+      - sam package --s3-bucket $S3_BUCKET --output-template-file trip-calculation.yml --debug
       
 artifacts:
   secondary-artifacts:
