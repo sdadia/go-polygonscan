@@ -1,6 +1,7 @@
 import os
 import json
 import time
+from pprint import pprint, pformat
 from base64 import b64encode, b64decode
 from multiprocessing import Process, Pipe
 from pprint import pprint, pformat
@@ -67,6 +68,23 @@ def chunks(l, n=25):
         yield l[i : i + n]
 
 
+def convert_data_to_TSModelC(data):
+    return {
+        "did_date": data["device_id"]
+        + ciso8601.parse_datetime(data["timestamp"]).date().format(),
+        "span_id": "1",
+        "tstime": 192233293,
+        "values": {
+            "gps_coords": {
+                "gps_timestamp": "234552221",
+                "lat": "12.33",
+                "lng": "45.3",
+            },
+            "speed": "123",
+        },
+    }
+
+
 def convert_data_to_TSModelB(data, metric_name):
 
     # convert the data into TS model
@@ -88,7 +106,8 @@ def convert_data_to_TSModelB(data, metric_name):
 
 def put_data_into_TS_dynamo_modelB(data):
     logger.info("Data for conversion : \n{}".format(pformat(data)))
-    unique_data={}
+    unique_keys = []
+    unique_data_as_ODM_model = []
 
     # convert the data into TS model
     data_as_ODM_model = []
@@ -129,30 +148,25 @@ def put_data_into_TS_dynamo_modelB(data):
         }
         # data_as_ODM_model.append(TSModelB(**d2_long))
 
-        # If records exist in unique_data, then update 
+        # If records exist in unique_data_as_ODM_model, then update
         # Else add object
-        if unique_data.get(d["deviceId"],False) is not False:
-
-            unique_data[d["deviceId"]][ciso8601.parse_datetime(d["timestamp"]).timestamp()]=[
-                TSModelB(**d2_speed),
-                TSModelB(**d2_lat),
-                TSModelB(**d2_long)
-            ] 
+        if d2_lat["did_date_measure"] + str(d2_lat["tstime"]) in unique_keys:
+            logger.warning("Found duplicate record for : {}".format(pformat(d)))
         else:
-            unique_data[d["deviceId"]] = {
-                ciso8601.parse_datetime(d["timestamp"]).timestamp(): [
-                    TSModelB(**d2_speed),
-                    TSModelB(**d2_lat),
-                    TSModelB(**d2_long)
-                ]
-            }
+            unique_keys.append(
+                d2_lat["did_date_measure"] + str(d2_lat["tstime"])
+            )
+            unique_data_as_ODM_model.append(TSModelB(**d2_lat))
+            unique_data_as_ODM_model.append(TSModelB(**d2_long))
+            unique_data_as_ODM_model.append(TSModelB(**d2_speed))
+    logger.info(unique_keys)
+    ddb.session.add_items(unique_data_as_ODM_model)
+    try:
 
-    for device_id in unique_data.keys():
-        for ts in unique_data[device_id]:
-            data_as_ODM_model = data_as_ODM_model + unique_data[device_id][ts]
-
-    ddb.session.add_items(data_as_ODM_model)
-    ddb.session.commit_items()
+        ddb.session.commit_items()
+    except Exception as e:
+        logger.error("Data is : {}".format(data))
+        raise
 
     return data_as_ODM_model
 
