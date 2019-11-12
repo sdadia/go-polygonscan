@@ -257,22 +257,54 @@ class Test_speed_aggregation(unittest.TestCase):
             # print(e1, e2)
             self.assertEqual(e1, e2)
 
-    def test_update_data_in_dynamo_using_ODM(self):
+    @mock.patch("Functions.SpeedAggregations.index.ddb.session")
+    def test_update_data_in_dynamo_using_ODM(self, mock_ddb_session_commit):
+        mock_ddb_session_commit.commit.return_value = True
         data = [
             {
-                "timestamp": str(ciso8601.parse_datetime("2019-05-22T10:44:07Z")),
+                "timestamp": str(
+                    ciso8601.parse_datetime("2019-05-22T10:44:07Z")
+                ),
                 "spanId_metricname": "123_speed",
                 "speed": 120.0,
                 "count": 1.0,
             },
             {
-                "timestamp": str(ciso8601.parse_datetime("2019-05-22T10:45:07Z")),
+                "timestamp": str(
+                    ciso8601.parse_datetime("2019-05-22T10:44:07Z")
+                ),
+                "spanId_metricname": "123_speed",
+                "speed": 120.0,
+                "count": 1.0,
+            },
+            {
+                "timestamp": str(
+                    ciso8601.parse_datetime("2019-05-22T10:44:07Z")
+                ),
+                "spanId_metricname": "123_speed",
+                "speed": 120.0,
+                "count": 1.0,
+            },
+            {
+                "timestamp": str(
+                    ciso8601.parse_datetime("2019-05-22T10:45:07Z")
+                ),
                 "spanId_metricname": "123_speed",
                 "speed": 160.0,
                 "count": 2.0,
             },
             {
-                "timestamp": str(ciso8601.parse_datetime("2019-05-22T10:46:07Z")),
+                "timestamp": str(
+                    ciso8601.parse_datetime("2019-05-22T10:46:07Z")
+                ),
+                "spanId_metricname": "122_speed",
+                "speed": 280.0,
+                "count": 3.0,
+            },
+            {
+                "timestamp": str(
+                    ciso8601.parse_datetime("2019-05-22T10:46:07Z")
+                ),
                 "spanId_metricname": "122_speed",
                 "speed": 280.0,
                 "count": 3.0,
@@ -300,10 +332,10 @@ class Test_speed_aggregation(unittest.TestCase):
             },
         ]
         ans = update_data_in_dynamo_using_ODM(data)
-        print(ans)
+        pprint(ans)
         ans = [x.attribute_values for x in ans]
         for e1, e2 in zip(expected_output, ans):
-            print(e1, e2)
+            # print(e1, e2)
             # e2["timestamp"] = str(e2["timestamp"])
             self.assertEqual(e1, e2)
 
