@@ -330,6 +330,10 @@ def update_data_in_dynamo_using_ODM(aggregate_values_as_list):
             logging.warning("Duplicate data found for : {}".format(d2))
 
     logging.debug("As aggregate model : {}".format(data_as_ODM_model))
+    data_as_ODM_model = list(set(data_as_ODM_model))
+    logger.info(
+        "\nAll Data for insertion is : {}".format(pformat(data_as_ODM_model))
+    )
 
     ddb.session.add_items(data_as_ODM_model)
     ddb.session.commit_items()
