@@ -8,10 +8,13 @@ import unittest
 from pprint import pformat, pprint
 
 os.environ["localhost"] = "1"
+os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
+os.environ[
+    "SpanDynamoDBTableName"
+] = "sahil_test_span_table_prefix_from_environment_var"
 
 from pvapps_odm.Schema.models import SpanModel
 
-os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
 
 logging.getLogger("Functions.CreateTimeseriesRecord.index").setLevel(
     logging.ERROR
@@ -28,7 +31,6 @@ from Functions.CreateTimeseriesRecord.index import (
     get_unique_device_ids_from_records,
     get_spans_for_devices_from_DAX_batch_usingODM,
     process_spans,
-    generate_uuid,
     DATETIME_FORMAT,
 )
 
@@ -51,7 +53,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         SpanModel.create_table()
-        time.sleep(0.5)
+        time.sleep(1)
 
     @classmethod
     def tearDownClass(cls):
@@ -580,8 +582,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         )
         self.assertEqual(len(ans), 1)
 
-
-class TestProcessSpans(unittest.TestCase):
+    # class TestProcessSpans(unittest.TestCase):
     current_device_spans = {
         "deviceId": "123",
         "spans": [
@@ -962,6 +963,7 @@ class TestProcessSpans(unittest.TestCase):
         self.assertEqual(all_spans[0]["start_time"], array_start_time)
         self.assertEqual(all_spans[0]["end_time"], array_end_time)
 
+    # @unittest.SkipTest
     @mock.patch(
         "Functions.CreateTimeseriesRecord.index.get_all_records_in_event"
     )
@@ -1680,10 +1682,10 @@ class TestProcessSpans(unittest.TestCase):
 
         handler(None, None)
 
-        ddb = dynamo_dbcon(SpanModel, Connection(host="http://localhost:8000"))
-        ddb.connect()
+        # ddb = dynamo_dbcon(SpanModel, Connection(host="http://localhost:8000"))
+        # ddb.connect()
 
-        ans = ddb.get_object("0551fd10-326a-4207-9c68-79e0bba85e0a", None)
+        ans = self.ddb.get_object("0551fd10-326a-4207-9c68-79e0bba85e0a", None)
         ans = ans.attribute_values
         pprint(ans)
         expected_1 = {
@@ -1719,7 +1721,7 @@ class TestProcessSpans(unittest.TestCase):
         for sp1, sp2 in zip(json.loads(ans["spans"]), (expected_1["spans"])):
             self.assertEqual(sorted(sp1), sorted(sp2))
 
-        ans = ddb.get_object("1da54fb7-b6c3-439b-ba59-de6f8a972ab0", None)
+        ans = self.ddb.get_object("1da54fb7-b6c3-439b-ba59-de6f8a972ab0", None)
         ans = ans.attribute_values
         pprint(ans)
         expected_2 = {
@@ -1782,5 +1784,5 @@ class TestProcessSpans(unittest.TestCase):
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestCreateTimeSeriesRecord))
-    suite.addTest(unittest.makeSuite(TestProcessSpans))
+    # suite.addTest(unittest.makeSuite(TestProcessSpans))
     return suite
