@@ -27,7 +27,7 @@ Parameters:
   ServiceName:
     Type: String
     Description: Name of the current service
-    Default: trip-calculation
+    Default: TripCalculation
 
   SpanTablePrefix:
     Type: String
@@ -181,9 +181,9 @@ Resources:
       Runtime: python3.6
       Role: !GetAtt LambdaExecutionRoleDDBKinesis.Arn 
       Environment:
-        Variables:
+        Variables: 
           SpanDynamoDBTableName: !Sub
-            - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
+            - ${ProjectId}--${Stage}-${ServiceName}-${TableName}-
             - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref SpanTablePrefix ,Stage: !Ref Stage }
           OutputKinesisStreamName: !Ref TaggedDataStream
 
@@ -215,10 +215,10 @@ Resources:
       Environment:
         Variables:
           SpanDynamoDBTableName: !Sub
-            - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
+            - ${ProjectId}-${Stage}-${ServiceName}-${TableName}-
             - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref SpanTablePrefix ,Stage: !Ref Stage }
           AggDynamoDBTableName: !Sub
-            - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
+            - ${ProjectId}-${Stage}-${ServiceName}-${TableName}-
             - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref AggregationTablePrefix ,Stage: !Ref Stage }
           StationaryIdlingTransitionDynamoTable: !Ref StationaryIdlingTimeTable
 
@@ -239,7 +239,7 @@ Resources:
       Environment:
         Variables:
           AggDynamoDBTableName: !Sub
-            - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
+            - ${ProjectId}-${Stage}-${ServiceName}-${TableName}-
             - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref AggregationTablePrefix ,Stage: !Ref Stage }
       Events:
         KinesisSource:
@@ -265,7 +265,7 @@ Resources:
       Environment:
         Variables:
           TSDynamoDBTableName: !Sub
-            - ${ProjectId}-${ServiceName}-${TableName}-${Stage}
+            - ${ProjectId}-${Stage}-${ServiceName}-${TableName}-
             - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref TSTablePrefix ,Stage: !Ref Stage }
       Events:
         KinesisSource:

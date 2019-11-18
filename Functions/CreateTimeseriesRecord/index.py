@@ -1,27 +1,20 @@
-from base64 import b64encode, b64decode
-from boto3.dynamodb.conditions import Key, Attr, AttributeNotExists
-from pprint import pprint, pformat
-import dynamo_helper
+from base64 import b64decode
+from pprint import pformat
+from pvapps_odm.Schema.models import SpanModel
+from pvapps_odm.ddbcon import Connection, dynamo_dbcon
 import amazondax
-import base64
 import boto3
 import botocore.session
+import ciso8601
 import datetime
-import functools
+import dynamo_helper
 import itertools
 import json
 import logging
 import os
-import sys
-import time
 import uuid
-from pvapps_odm.Schema.models import SpanModel
-from pvapps_odm.session import dynamo_session
-from pvapps_odm.ddbcon import dynamo_dbcon
-from pvapps_odm.ddbcon import Connection
-import ciso8601
 
-sess = dynamo_session(SpanModel)
+# sess = dynamo_session(SpanModel)
 
 
 root = logging.getLogger()
@@ -47,7 +40,6 @@ envVarsList = ["SpanDynamoDBTableName", "DAXUrl", "OutputKinesisStreamName"]
 for var in envVarsList:
     if var in os.environ.keys():
         env_vars[var] = os.environ[var]
-env_vars["SpanDynamoDBTableName"] = SpanModel.Meta.table_name
 logger.info("Environment variables are : {}".format(env_vars))
 ######################################################
 ##                                                  ##
@@ -59,6 +51,13 @@ deserializer = boto3.dynamodb.types.TypeDeserializer()
 serializer = boto3.dynamodb.types.TypeSerializer()
 
 
+SpanModel.Meta.table_name = (
+    env_vars["SpanDynamoDBTableName"] + datetime.datetime.utcnow().strftime("%d%m%Y")
+
+)
+logging.info(
+    "Span Table name after using ENV var : {}".format(SpanModel.Meta.table_name)
+)
 ddb = dynamo_dbcon(SpanModel, conn=Connection())
 ddb.connect()
 
@@ -889,7 +888,11 @@ def handler(event, context):
         device_spans_dict = list(
             {v["deviceId"]: v for v in device_spans_dict}.values()
         )
-        logger.info("Device Spans after duplicate removal : {}".format(device_spans_dict))
+        logger.info(
+            "Device Spans after duplicate removal : {}".format(
+                device_spans_dict
+            )
+        )
 
         # clean up the list of d
 

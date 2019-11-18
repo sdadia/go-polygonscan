@@ -339,6 +339,39 @@ class Test_speed_aggregation(unittest.TestCase):
             # e2["timestamp"] = str(e2["timestamp"])
             self.assertEqual(e1, e2)
 
+    def test_duplicate_record_removal(self):
+        data = [
+            {
+                "spanId_metricname": "123_speed",
+                "timestamp": "2019-07-26 16:34:00.000Z",
+                "count": 60,
+                "speed": 15,
+            },
+            # same everything
+            {
+                "spanId_metricname": "123_speed",
+                "timestamp": "2019-07-26 16:34:00.000Z",
+                "count": 61,
+                "speed": 15,
+            },
+            # same pk/sk but different count
+            {
+                "spanId_metricname": "123_speed",
+                "timestamp": "2019-07-26 16:34:00.000Z",
+                "count": 62,
+                "speed": 15,
+            },
+            # completely new data
+            {
+                "spanId_metricname": "123_lat",
+                "timestamp": "2015-04-22 06:14:00.000Z",
+                "count": 162,
+                "speed": 35,
+            },
+        ]
+
+        update_data_in_dynamo_using_ODM(data)
+
 
 def suite():
     suite = unittest.TestSuite()
