@@ -37,7 +37,7 @@ Parameters:
   TSTablePrefix:
     Type: String
     Description: Prefix for creation of TS telematics tables
-    Default: TelematicsTable
+    Default: TimeseriesTable
       
   AggregationTablePrefix:
     Type: String
