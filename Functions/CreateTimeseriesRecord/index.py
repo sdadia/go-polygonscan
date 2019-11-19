@@ -13,6 +13,8 @@ import json
 import logging
 import os
 import uuid
+import sys
+from pprint import pprint
 
 # sess = dynamo_session(SpanModel)
 
@@ -51,10 +53,9 @@ deserializer = boto3.dynamodb.types.TypeDeserializer()
 serializer = boto3.dynamodb.types.TypeSerializer()
 
 
-SpanModel.Meta.table_name = (
-    env_vars["SpanDynamoDBTableName"] + datetime.datetime.utcnow().strftime("%d%m%Y")
-
-)
+SpanModel.Meta.table_name = env_vars[
+    "SpanDynamoDBTableName"
+] + datetime.datetime.utcnow().strftime("%d%m%Y")
 logging.info(
     "Span Table name after using ENV var : {}".format(SpanModel.Meta.table_name)
 )
@@ -529,7 +530,6 @@ def process_spans(all_spans, array_start_time, array_end_time):
 
 
 def get_all_records_in_event2(event):
-
     logger.info("Getting all the records from event")
 
     all_records = []  # holds all records
@@ -549,7 +549,6 @@ def get_all_records_in_event2(event):
 
 
 def get_all_records_in_event(event):
-
     logger.info("Getting all the records from event")
 
     all_records = []  # holds all records
@@ -579,7 +578,6 @@ def get_all_records_in_event(event):
 
 
 def get_unique_device_ids_from_records(all_records):
-
     logger.info("Finding unique device Ids from all records")
 
     unique_deviceIds_list = list(
@@ -663,53 +661,143 @@ def update_modified_device_spans_in_dynamo(device_spans_dict):
     logger.info("updating modified device spans in dynamo...Done")
 
 
+def _split_span_across_2_days(span):
+    assert span["start_time"].date() != span["end_time"].date(), logger.error(
+        "Given Span {} is not across 2 days".format(span)
+    )
+    end_time_day_1 = span["start_time"].replace(
+        hour=23, minute=59, second=59, microsecond=0
+    )
+    start_time_day_2 = span["end_time"].replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    spanId_day_2 = span["spanId"] + "_splitted"
+
+    day_1_span = {
+        "spanId": span["spanId"],
+        "start_time": span["start_time"],
+        "end_time": end_time_day_1,
+    }
+    day_2_span = {
+        "spanId": spanId_day_2,
+        "start_time": start_time_day_2,
+        "end_time": span["end_time"],
+    }
+    # else:
+
+    return day_1_span, day_2_span
+
+
+def _map_device_spans_to_date(spans):
+    if not isinstance(spans, list):
+        spans = [spans]
+    data = {}
+    for d in spans:
+        date_ = str(d["start_time"].date())
+        if data.get(date_):
+            data[date_].append(d)
+        else:
+            data[date_] = [d]
+
+    return data
+
+
 def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
     logger.info("updating modified device spans in dynamo using ODM")
+    logger.debug("Spans Dict is : \n{}".format(device_spans_dict))
 
-    # modified_devices_span_dict = [
-    # x for x in device_spans_dict if "modified" in x
-    # ]
-    modified_devices_span_dict = device_spans_dict
-
-    for m_dev in modified_devices_span_dict:
-        # convert time to sstring
-        for sp in m_dev["spans"]:
-            # sp["start_time"] = (sp["start_time"]).strftime(DATETIME_FORMAT)
-            sp["start_time"] = str(sp["start_time"])
-            # sp["start_time"] = (sp["start_time"]).isoformat()
-
-            # sp["end_time"] = (sp["end_time"]).isoformat()
-            sp["end_time"] = str(sp["end_time"])
-            # sp["end_time"] = (sp["end_time"]).strftime(DATETIME_FORMAT)
-            # sp["start_time"] = datetime.datetime.strfmt(sp["start_time"], DATETIME_FORMAT)
-            # sp["end_time"] = str(sp["end_time"])
-
-        m_dev["spans"] = json.dumps(m_dev["spans"])
-
-    # pprint(modified_devices_span_dict)
+    modified_devices_span_dict = [
+        d for d in device_spans_dict if d.get("modified")
+    ]
     logger.debug(
-        "Converting to json modified device spans : {}".format(
+        "Devices whose spans are modified are : \n{}".format(
             pformat(modified_devices_span_dict)
         )
     )
 
-    spans_dict_as_OMD_spanmodel = []
-    for x in modified_devices_span_dict:
-        data_for_ODM = {"deviceId": x["deviceId"], "spans": x["spans"]}
-        spans_dict_as_OMD_spanmodel.append(SpanModel(**data_for_ODM))
-    logging.info(
-        "Spans to update as ODM Models : \n{}".format(
-            pformat(spans_dict_as_OMD_spanmodel)
+    # split the spans which are across 2 days
+    for idx, modified_device in enumerate(modified_devices_span_dict):
+        spans_ = modified_device["spans"]
+        index_to_remove = []
+        cross_days_spans = []
+        for index, sp in enumerate(spans_):
+
+            # span splitting across days
+            if sp["start_time"].date() != sp["end_time"].date():
+                logger.warning(
+                    "Span is across days for : \n{}".format(pformat(sp))
+                )
+                logger.warning("Going to split the span across the days")
+                day1_span, day2_span = _split_span_across_2_days(sp)
+                index_to_remove.append(index)
+                cross_days_spans.extend([day1_span, day2_span])
+
+        index_to_remove.sort(reverse=True)
+        for i in index_to_remove:
+            del modified_device["spans"][i]
+        modified_device["spans"].extend(cross_days_spans)
+
+    # get the spans for each day for eachd evice
+    # {
+    # date : device : [spans ...],
+    # device: [spans],
+    # date : device : [spans ...],
+    # device: [spans],
+    # }
+
+    data_by_date = {}
+    for idx, modified_device in enumerate(modified_devices_span_dict):
+        spans_ = modified_device["spans"]
+        device_id = modified_device["deviceId"]
+        ans = _map_device_spans_to_date(spans_)
+
+        for date_, spans in ans.items():
+            if not data_by_date.get(date_):  # if date does not exist, create it
+                logger.warning("Date {} does not exist".format(date_))
+                data_by_date[date_] = {}
+            if not data_by_date[date_].get(
+                device_id
+            ):  # if device does not exist create it
+                data_by_date[date_][device_id] = []
+                logger.warning(
+                    "device {} does not exist for {} date".format(
+                        device_id, date_
+                    )
+                )
+
+            data_by_date[date_][device_id].extend(spans)
+
+    # send the data to the right table for each device based on the date attribute
+    for index, (date, data) in enumerate(data_by_date.items()):
+        data_as_odm_model = []
+
+        SpanModel.Meta.table_name = env_vars["SpanDynamoDBTableName"] + "".join(
+            date.split("-")[::-1]
         )
-    )
+        SpanModel._connection = (
+            None
+        )  # after changing model's table name - set it to none
 
-    ddb.session.add_items(spans_dict_as_OMD_spanmodel)
-    ddb.session.commit_items()
+        ddb = dynamo_dbcon(SpanModel, conn=Connection())
+        ddb.connect()
 
-    # sess.add_items(spans_dict_as_OMD_spanmodel)
-    # sess.commit_items()
+        for device_id, spans in data.items():
+            for sp in spans:
+                sp["start_time"] = str(
+                    sp["start_time"]
+                )  # format the data as string
+                sp["end_time"] = str(sp["end_time"])
+            # print(spans)
+            spans = json.dumps(spans)
+            data_as_odm_model.append(
+                SpanModel(**{"deviceId": device_id, "spans": spans})
+            )
+        ddb.session.add_items(data_as_odm_model)
+        ddb.session.commit_items()
 
     logger.info("updating modified device spans in dynamo using ODM...Done")
+    return data_by_date
 
 
 def send_tagged_data_to_kinesis(tagged_data):
@@ -914,7 +1002,6 @@ def handler(event, context):
     # batch update the devices whose spans we updated #
     ###################################################
 
-    # update_modified_device_spans_in_dynamo(device_spans_dict)
     update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict)
 
     #########################################
