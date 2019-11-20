@@ -1,4 +1,5 @@
 import pytz
+import ciso8601
 import json
 import datetime
 import logging
@@ -7,7 +8,7 @@ import sys
 import unittest
 from pprint import pformat, pprint
 
-os.environ["localhost"] = "1"
+# os.environ["localhost"] = "1"
 os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
 os.environ[
     "SpanDynamoDBTableName"
@@ -32,6 +33,9 @@ from Functions.CreateTimeseriesRecord.index import (
     get_spans_for_devices_from_DAX_batch_usingODM,
     process_spans,
     DATETIME_FORMAT,
+    update_modified_device_spans_in_dynamo_using_ODM,
+    _split_span_across_2_days,
+    _map_device_spans_to_date,
 )
 
 
@@ -46,7 +50,6 @@ from pynamodb.connection import Connection
 
 
 class TestCreateTimeSeriesRecord(unittest.TestCase):
-
     ddb = dynamo_dbcon(SpanModel, Connection(host="http://localhost:8000"))
     ddb.connect()
 
@@ -1779,6 +1782,264 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         self.assertEqual(ans["deviceId"], expected_2["deviceId"])
         for sp1, sp2 in zip(json.loads(ans["spans"]), (expected_2["spans"])):
             self.assertEqual(sorted(sp1), sorted(sp2))
+
+    def test__split_span_across_2_days(self):
+        data = {
+            "start_time": ciso8601.parse_datetime("2019-06-26T23:58:50.006Z"),
+            "end_time": ciso8601.parse_datetime("2019-06-27T00:00:10Z"),
+            "spanId": "test_span_id",
+        }
+        expected_day_1_span = {
+            "start_time": ciso8601.parse_datetime("2019-06-26T23:58:50.006Z"),
+            "end_time": ciso8601.parse_datetime("2019-06-26T23:59:59Z"),
+            "spanId": "test_span_id",
+        }
+        expected_day_2_span = {
+            "start_time": ciso8601.parse_datetime("2019-06-27T00:00:00.000Z"),
+            "end_time": ciso8601.parse_datetime("2019-06-27T00:00:10Z"),
+            "spanId": "test_span_id_splitted",
+        }
+        day_1_span, day_2_span = _split_span_across_2_days(data)
+        for e1, e2 in zip(
+            [day_1_span, day_2_span], [expected_day_1_span, expected_day_2_span]
+        ):
+            self.assertEqual(e1["spanId"], e2["spanId"])
+            self.assertEqual(e1["start_time"], e2["start_time"])
+            self.assertEqual(e1["end_time"], e2["end_time"])
+
+    def test__split_span_across_2_days_raise_assert_error(self):
+        data = {
+            "start_time": ciso8601.parse_datetime("2019-06-26T23:58:50.006Z"),
+            "end_time": ciso8601.parse_datetime("2019-06-26T00:00:10Z"),
+            "spanId": "test_span_id",
+        }
+
+        self.assertRaises(AssertionError, _split_span_across_2_days, data)
+
+    def test__map_device_spans_to_date(self):
+        test_data = [
+            {
+                "start_time": ciso8601.parse_datetime("2019-06-26T23:58:50Z"),
+                "end_time": ciso8601.parse_datetime("2019-06-26T00:00:10Z"),
+                "spanId": "span_1_1",
+            },
+            {
+                "start_time": ciso8601.parse_datetime("2019-06-27T13:58:50Z"),
+                "end_time": ciso8601.parse_datetime("2019-06-27T14:00:10Z"),
+                "spanId": "span_1_2",
+            },
+            {
+                "start_time": ciso8601.parse_datetime("2019-06-27T17:58:50Z"),
+                "end_time": ciso8601.parse_datetime("2019-06-27T18:00:10Z"),
+                "spanId": "span_1_3",
+            },
+        ]
+        expected_answer = {
+            "2019-06-26": [
+                {
+                    "start_time": ciso8601.parse_datetime(
+                        "2019-06-26T23:58:50Z"
+                    ),
+                    "end_time": ciso8601.parse_datetime("2019-06-26T00:00:10Z"),
+                    "spanId": "span_1_1",
+                }
+            ],
+            "2019-06-27": [
+                {
+                    "start_time": ciso8601.parse_datetime(
+                        "2019-06-27T13:58:50Z"
+                    ),
+                    "end_time": ciso8601.parse_datetime("2019-06-27T14:00:10Z"),
+                    "spanId": "span_1_2",
+                },
+                {
+                    "start_time": ciso8601.parse_datetime(
+                        "2019-06-27T17:58:50Z"
+                    ),
+                    "end_time": ciso8601.parse_datetime("2019-06-27T18:00:10Z"),
+                    "spanId": "span_1_3",
+                },
+            ],
+        }
+        ans = _map_device_spans_to_date(test_data)
+
+        for e1, e2 in zip(ans.values(), expected_answer.values()):
+            for m1, m2 in zip(e1, e2):
+                self.assertEqual(m1, m2)
+
+        pprint(ans)
+
+    @unittest.SkipTest
+    def test_update_modified_device_spans_in_dynamo_using_ODM(self):
+        test_data = [
+            {
+                "deviceId": "test_device_1",
+                "spans": [
+                    {  # spans acroos 2 days
+                        "start_time": ciso8601.parse_datetime(
+                            "2019-06-26T23:58:50Z"
+                        ),
+                        "end_time": ciso8601.parse_datetime(
+                            "2019-06-27T00:00:10Z"
+                        ),
+                        "spanId": "span_1_1",
+                    },
+                    {
+                        "start_time": ciso8601.parse_datetime(
+                            "2019-06-26T13:58:50Z"
+                        ),
+                        "end_time": ciso8601.parse_datetime(
+                            "2019-06-26T14:00:10Z"
+                        ),
+                        "spanId": "span_1_2",
+                    },
+                ],
+                "modified": 1,
+            },
+            {
+                "deviceId": "test_device_3",
+                "spans": [
+                    {  # spans acroos 2 days
+                        "start_time": ciso8601.parse_datetime(
+                            "2019-06-26T23:58:50Z"
+                        ),
+                        "end_time": ciso8601.parse_datetime(
+                            "2019-06-27T00:00:10Z"
+                        ),
+                        "spanId": "span_3_1",
+                    },
+                    {
+                        "start_time": ciso8601.parse_datetime(
+                            "2019-06-26T13:58:50Z"
+                        ),
+                        "end_time": ciso8601.parse_datetime(
+                            "2019-06-26T14:00:10Z"
+                        ),
+                        "spanId": "span_3_2",
+                    },
+                ],
+                "modified": 1,
+            },
+            {  # span not modified
+                "deviceId": "test_device_2",
+                "spans": [
+                    {
+                        "start_time": ciso8601.parse_datetime(
+                            "2019-06-26T23:58:50Z"
+                        ),
+                        "end_time": ciso8601.parse_datetime(
+                            "2019-06-27T00:00:10Z"
+                        ),
+                        "spanId": "span_2_1",
+                    }
+                ],
+            },
+        ]
+        expected_answer = {
+            "2019-06-26": {
+                "test_device_1": [
+                    {
+                        "end_time": datetime.datetime(
+                            2019, 6, 26, 14, 0, 10, tzinfo=datetime.timezone.utc
+                        ),
+                        "spanId": "span_1_2",
+                        "start_time": datetime.datetime(
+                            2019,
+                            6,
+                            26,
+                            13,
+                            58,
+                            50,
+                            tzinfo=datetime.timezone.utc,
+                        ),
+                    },
+                    {
+                        "end_time": datetime.datetime(
+                            2019,
+                            6,
+                            26,
+                            23,
+                            59,
+                            59,
+                            tzinfo=datetime.timezone.utc,
+                        ),
+                        "spanId": "span_1_1",
+                        "start_time": datetime.datetime(
+                            2019,
+                            6,
+                            26,
+                            23,
+                            58,
+                            50,
+                            tzinfo=datetime.timezone.utc,
+                        ),
+                    },
+                ],
+                "test_device_3": [
+                    {
+                        "end_time": datetime.datetime(
+                            2019, 6, 26, 14, 0, 10, tzinfo=datetime.timezone.utc
+                        ),
+                        "spanId": "span_3_2",
+                        "start_time": datetime.datetime(
+                            2019,
+                            6,
+                            26,
+                            13,
+                            58,
+                            50,
+                            tzinfo=datetime.timezone.utc,
+                        ),
+                    },
+                    {
+                        "end_time": datetime.datetime(
+                            2019,
+                            6,
+                            26,
+                            23,
+                            59,
+                            59,
+                            tzinfo=datetime.timezone.utc,
+                        ),
+                        "spanId": "span_3_1",
+                        "start_time": datetime.datetime(
+                            2019,
+                            6,
+                            26,
+                            23,
+                            58,
+                            50,
+                            tzinfo=datetime.timezone.utc,
+                        ),
+                    },
+                ],
+            },
+            "2019-06-27": {
+                "test_device_1": [
+                    {
+                        "end_time": datetime.datetime(
+                            2019, 6, 27, 0, 0, 10, tzinfo=datetime.timezone.utc
+                        ),
+                        "spanId": "span_1_1_splitted",
+                        "start_time": datetime.datetime(
+                            2019, 6, 27, 0, 0, tzinfo=datetime.timezone.utc
+                        ),
+                    }
+                ],
+                "test_device_3": [
+                    {
+                        "end_time": datetime.datetime(
+                            2019, 6, 27, 0, 0, 10, tzinfo=datetime.timezone.utc
+                        ),
+                        "spanId": "span_3_1_splitted",
+                        "start_time": datetime.datetime(
+                            2019, 6, 27, 0, 0, tzinfo=datetime.timezone.utc
+                        ),
+                    }
+                ],
+            },
+        }
+        update_modified_device_spans_in_dynamo_using_ODM(test_data)
 
 
 def suite():
