@@ -672,7 +672,7 @@ def _split_span_across_2_days(span):
         hour=0, minute=0, second=0, microsecond=0
     )
 
-    spanId_day_2 = span["spanId"] + "_splitted"
+    spanId_day_2 = generate_uuid()
 
     day_1_span = {
         "spanId": span["spanId"],
@@ -683,6 +683,7 @@ def _split_span_across_2_days(span):
         "spanId": spanId_day_2,
         "start_time": start_time_day_2,
         "end_time": span["end_time"],
+        "parent": day_1_span["spanId"],
     }
     # else:
 
