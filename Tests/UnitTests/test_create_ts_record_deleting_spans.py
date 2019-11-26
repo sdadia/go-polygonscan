@@ -689,6 +689,41 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
 
         handler(None, None)
 
+    def test_update_modified_device_spans_in_dynamo_using_ODM(self):
+        data = {
+            "24112019": {"1": {"deviceId": "1", "spans": []}},
+            "25112019": {
+                "1": {"deviceId": "1", "spans": []},
+                "2": {"deviceId": "2", "spans": []},
+                "3": {"deviceId": "3", "spans": []},
+            },
+        }
+        update_modified_device_spans_in_dynamo_using_ODM(data)
+
+        output = get_data_for_device_from_particular_table_using_OMD(
+            [
+                {"date": "24112019", "deviceId": "1"},
+                {"date": "25112019", "deviceId": "1"},
+                {"date": "25112019", "deviceId": "2"},
+                {"date": "25112019", "deviceId": "3"},
+            ]
+        )
+        pprint(output)
+        expected_output = {
+                "24112019": {"1": {"deviceId": "1", "spans": []}},
+            "25112019": {
+                "1": {"deviceId": "1", "spans": []},
+                "2": {"deviceId": "2", "spans": []},
+                "3": {"deviceId": "3", "spans": []},
+            },
+        }
+        for k1, k2 in zip(sorted(output), sorted(expected_output)):
+            self.assertEqual(k1, k2)
+            print(k1, k2)
+            for e1, e2 in zip(sorted(output[k1]), sorted(expected_output[k2])):
+                print(output[k1][e1], expected_output[k2][e2])
+                self.assertEqual(output[k1][e1], expected_output[k2][e2])
+
 
 def suite():
     suite = unittest.TestSuite()

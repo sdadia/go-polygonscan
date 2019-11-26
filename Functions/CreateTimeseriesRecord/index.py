@@ -728,7 +728,10 @@ def update_modified_device_spans_in_dynamo_using_ODM(date_device_ODM_object):
             )
 
         ddb.session.add_items(objects_to_write)
-        ddb.session.commit_items()
+        try:
+            ddb.session.commit_items()
+        except Exception as e:
+            logger.error("Got and Error : {}".format(e))
         # pprint(objects_to_write)
         # print("\n\n")
     return "successfully written"
@@ -1011,7 +1014,7 @@ def get_data_for_device_from_particular_table_using_OMD(
 
 def handler(event, context):
     logger.info("Starting handler")
-    # logger.error("Event is : {}".format(event))
+    logger.info("Event is : {}".format(event))
 
     ##############################
     # Get all records from event #
