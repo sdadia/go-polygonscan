@@ -8,13 +8,17 @@ import sys
 import unittest
 from pprint import pformat, pprint
 
-# os.environ["localhost"] = "1"
+os.environ["localhost"] = "1"
 os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
 os.environ[
     "SpanDynamoDBTableName"
 ] = "sahil_test_span_table_prefix_from_environment_var"
 
 from pvapps_odm.Schema.models import SpanModel
+
+SpanModel.Meta.table_name = os.environ[
+    "SpanDynamoDBTableName"
+] + datetime.datetime.utcnow().strftime("%d%m%Y")
 
 
 logging.getLogger("Functions.CreateTimeseriesRecord.index").setLevel(
@@ -50,17 +54,19 @@ from pynamodb.connection import Connection
 
 
 class TestCreateTimeSeriesRecord(unittest.TestCase):
+    print(SpanModel.Meta.table_name)
     ddb = dynamo_dbcon(SpanModel, Connection(host="http://localhost:8000"))
     ddb.connect()
 
     @classmethod
     def setUpClass(cls):
+
         SpanModel.create_table()
         time.sleep(1)
 
     @classmethod
     def tearDownClass(cls):
-        time.sleep(0.5)
+        time.sleep(1)
         SpanModel.delete_table()
 
     @mock.patch(
@@ -1783,7 +1789,9 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         for sp1, sp2 in zip(json.loads(ans["spans"]), (expected_2["spans"])):
             self.assertEqual(sorted(sp1), sorted(sp2))
 
-    def test__split_span_across_2_days(self):
+    @mock.patch("Functions.CreateTimeseriesRecord.index.generate_uuid")
+    def test__split_span_across_2_days(self, mock_generate_uuid):
+        mock_generate_uuid.return_value = "123_mock_id_for_next_day"
         data = {
             "start_time": ciso8601.parse_datetime("2019-06-26T23:58:50.006Z"),
             "end_time": ciso8601.parse_datetime("2019-06-27T00:00:10Z"),
@@ -1797,7 +1805,8 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         expected_day_2_span = {
             "start_time": ciso8601.parse_datetime("2019-06-27T00:00:00.000Z"),
             "end_time": ciso8601.parse_datetime("2019-06-27T00:00:10Z"),
-            "spanId": "test_span_id_splitted",
+            "spanId": mock_generate_uuid.return_value,
+            "parent": expected_day_1_span["spanId"],
         }
         day_1_span, day_2_span = _split_span_across_2_days(data)
         for e1, e2 in zip(
@@ -1808,6 +1817,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             self.assertEqual(e1["end_time"], e2["end_time"])
 
     def test__split_span_across_2_days_raise_assert_error(self):
+        # raises an error coz the start/end time are not across 2 days
         data = {
             "start_time": ciso8601.parse_datetime("2019-06-26T23:58:50.006Z"),
             "end_time": ciso8601.parse_datetime("2019-06-26T00:00:10Z"),

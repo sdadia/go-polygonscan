@@ -104,6 +104,7 @@ def get_spans_for_devices_from_DAX_batch_usingODM(device_ids):
     """
     logger.info("Getting Spans data for specific device from DAX using ODM")
     only_device_ids = [x["deviceId"] for x in device_ids]
+    print(only_device_ids)
     response = ddb.batch_get(only_device_ids)
     logger.debug("Response from request on DAX using ODM : {}".format(response))
 
@@ -672,7 +673,7 @@ def _split_span_across_2_days(span):
         hour=0, minute=0, second=0, microsecond=0
     )
 
-    spanId_day_2 = span["spanId"] + "_splitted"
+    spanId_day_2 = generate_uuid()
 
     day_1_span = {
         "spanId": span["spanId"],
@@ -683,6 +684,7 @@ def _split_span_across_2_days(span):
         "spanId": spanId_day_2,
         "start_time": start_time_day_2,
         "end_time": span["end_time"],
+        "parent": day_1_span["spanId"],
     }
     # else:
 
@@ -703,7 +705,39 @@ def _map_device_spans_to_date(spans):
     return data
 
 
-def update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict):
+def update_modified_device_spans_in_dynamo_using_ODM(date_device_ODM_object):
+    for date in date_device_ODM_object:
+        objects_to_write = []
+        SpanModel.Meta.table_name = env_vars["SpanDynamoDBTableName"] + date
+        SpanModel._connection = (
+            None
+        )  # after changing model's table name - set it to none
+        ddb = dynamo_dbcon(SpanModel, conn=Connection())
+        ddb.connect()
+
+        for device in date_device_ODM_object[date]:
+            for sp in date_device_ODM_object[date][device]["spans"]:
+                sp["start_time"] = str(sp["start_time"])
+                sp["end_time"] = str(sp["end_time"])
+            date_device_ODM_object[date][device]["spans"] = json.dumps(
+                date_device_ODM_object[date][device]["spans"]
+            )
+
+            objects_to_write.append(
+                SpanModel(**date_device_ODM_object[date][device])
+            )
+
+        ddb.session.add_items(objects_to_write)
+        try:
+            ddb.session.commit_items()
+        except Exception as e:
+            logger.error("Got and Error : {}".format(e))
+        # pprint(objects_to_write)
+        # print("\n\n")
+    return "successfully written"
+
+
+def update_modified_device_spans_in_dynamo_using_ODM2(device_spans_dict):
     logger.info("updating modified device spans in dynamo using ODM")
     logger.debug("Spans Dict is : \n{}".format(device_spans_dict))
 
@@ -832,9 +866,155 @@ def send_tagged_data_to_kinesis(tagged_data):
     logger.info("Sending tagged data to kinesis...Done")
 
 
+def _split_records_across_days(all_valid_records):
+    record_index_across_days = []
+    record_break_index = []
+
+    for idx, rec in enumerate(all_valid_records):
+        start_time = ciso8601.parse_datetime(rec[0]["timeStamp"])
+        end_time = ciso8601.parse_datetime(rec[-1]["timeStamp"])
+
+        if start_time.date() != end_time.date():
+            logger.warning(
+                "Got data between 2 dates for record number ; {}".format(idx)
+            )
+            logger.warning("Record across dates is : {}".format(rec))
+            index_to_break_at = None
+            for idx2, r in enumerate(rec):
+                if (
+                    ciso8601.parse_datetime(r["timeStamp"]).date()
+                    != start_time.date()
+                ):
+                    record_index_across_days.append(idx)
+                    record_break_index.append(idx2)
+                    break
+    # return record_index_across_days, record_break_index
+
+    records_across_days = []
+    for index, break_in_index in zip(
+        record_index_across_days, record_break_index
+    ):
+        day_1_record = all_valid_records[index][0:break_in_index]
+        day_2_record = all_valid_records[index][break_in_index:]
+
+        records_across_days.append(day_1_record)
+        records_across_days.append(day_2_record)
+
+    record_index_across_days.reverse()
+    for index in record_index_across_days:
+        del all_valid_records[index]
+
+    all_valid_records.extend(records_across_days)
+
+    return all_valid_records
+
+
+def find_date_device_combos_from_records(all_valid_records):
+    """
+    Return a list of the date and device belonging to those dates
+
+    # date is in ddMMYYYY for mat
+
+    [{'date': '24112019', 'deviceId': '1'},
+     {'date': '25112019', 'deviceId': '1'},
+     {'date': '25112019', 'deviceId': '2'}]
+
+    """
+    data = {}
+    for rec in all_valid_records:
+        date = (
+            ciso8601.parse_datetime(rec[0]["timeStamp"])
+            .date()
+            .strftime("%d%m%Y")
+        )
+        deviceId = rec[0]["deviceId"]
+
+        if date not in data:
+            data[date] = []
+        if (
+            deviceId not in data[date]
+        ):  # only add if the device has not been previously added
+            data[date].append(deviceId)
+
+    data2 = []
+    for k, v in data.items():
+        for val in v:
+            data2.append({"date": k, "deviceId": val})
+
+    return data2
+
+
+def get_data_for_device_from_particular_table_using_OMD(
+    date_device_dictionary_list
+):
+    """
+    Expected input : [{'date': '24112019', 'deviceId': '1'},
+     {'date': '25112019', 'deviceId': '1'},
+     {'date': '25112019', 'deviceId': '2'}]
+
+    Expected output : 
+    {'24112019': {'1': SpanModel(deviceId='1', spans='abc')},
+     '25112019': {'1': SpanModel(deviceId='1', spans='pqr'),
+                  '2': SpanModel(deviceId='2', spans='[]'),
+                  '3': SpanModel(deviceId='3', spans='[]')}}
+    """
+    data = {}
+    for val in date_device_dictionary_list:
+        date = val["date"]
+        deviceId = val["deviceId"]
+        if date not in data.keys():
+            data[date] = []
+        if deviceId not in data[date]:
+            data[date].append(deviceId)
+
+    data2 = {}
+    for date in data:
+
+        SpanModel.Meta.table_name = env_vars["SpanDynamoDBTableName"] + date
+        SpanModel._connection = (
+            None
+        )  # after changing model's table name - set it to none
+        ddb = dynamo_dbcon(SpanModel, conn=Connection())
+        ddb.connect()
+
+        ans = data[date]
+        ODM_ans = ddb.batch_get(data[date])
+
+        if len(data[date]) != len(ODM_ans):
+            missing_deviceids = list(
+                set(data[date]) - set([x.deviceId for x in ODM_ans])
+            )
+
+            for devid in missing_deviceids:
+                ODM_ans.append(SpanModel(**{"deviceId": devid, "spans": []}))
+
+        for d in ODM_ans:
+            if date not in data2:
+                data2[date] = {}
+            data2[date][d.deviceId] = d
+
+    data3 = {}
+    for date in data2:
+        for deviceId, model in data2[date].items():
+            if date not in data3:
+                data3[date] = {}
+
+            data3[date][deviceId] = model.attribute_values
+            try:
+                data3[date][deviceId]["spans"] = format_spans(
+                    json.loads(data3[date][deviceId]["spans"])
+                )
+            except TypeError as e:
+                pass
+
+    # pprint(data3)
+
+    return data3
+
+
 def handler(event, context):
     logger.info("Starting handler")
-    logger.error("Event is : {}".format(event))
+    logger.info("Event is : {}".format(event))
 
     ##############################
     # Get all records from event #
@@ -852,9 +1032,19 @@ def handler(event, context):
             continue
         else:
             all_valid_records.append(valid_rec)
+    logger.info(
+        "Len of Valid records before splitting across days are : {}".format(
+            len(all_valid_records)
+        )
+    )
 
-    logger.info("Len of Valid records are : {}".format(len(all_valid_records)))
-    logger.debug("Valid records are : {}".format(all_valid_records))
+    # split the records across days, if it has some
+    all_valid_records = _split_records_across_days(all_valid_records)
+    logger.info(
+        "Len of Valid records after splitting across days are : {}".format(
+            len(all_valid_records)
+        )
+    )
 
     if len(all_valid_records) == 0:
         return "No records are valid"
@@ -862,15 +1052,24 @@ def handler(event, context):
     #################################
     # get all the unique device IDs #
     #################################
-    unique_deviceIds = get_unique_device_ids_from_records(all_valid_records)
+    # unique_deviceIds = get_unique_device_ids_from_records(all_valid_records)
+    date_device_combos = find_date_device_combos_from_records(all_valid_records)
 
     ########################################
     # get spans for these unique deviceIds #
     ########################################
-    device_spans_dict = get_spans_for_devices_from_DAX_batch_usingODM(
-        unique_deviceIds
+    # device_spans_dict = get_spans_for_devices_from_DAX_batch_usingODM(
+    # unique_deviceIds
+    # )
+    date_device_ODM_object = get_data_for_device_from_particular_table_using_OMD(
+        date_device_combos
     )
-    # print(device_spans_dict)
+    logger.info(
+        "Date-Device Spans Dict after getting data from ODM :  {}".format(
+            pformat(date_device_ODM_object)
+        )
+    )
+    # print(date_device_combos)
 
     ################
     # Tagged data ##
@@ -884,21 +1083,17 @@ def handler(event, context):
         logger.info("Processing record number : {}".format(rec_index))
 
         rec = format_data_pts_in_rec(rec)
-        logger.debug("Current valid record is : {}".format(rec))
+        logger.debug("Formatted valid record is : {}".format(rec))
 
         current_rec_device_id = rec[0]["deviceId"]
-        try:
-            current_rec_device_id_spans = []
-            for x in device_spans_dict:
-                if x["deviceId"] == current_rec_device_id:
-                    current_rec_device_id_spans = x["spans"]
-
-        except Exception as e:
-            logger.error("Error is : {}".format(e))
-            current_rec_device_id_spans = []
+        day = rec[0]["timeStamp"].date().strftime("%d%m%Y")  # as string
+        logger.info("Day for record is : {}".format(day))
+        current_rec_device_id_spans = date_device_ODM_object[day][
+            current_rec_device_id
+        ]["spans"]
 
         logger.info(
-            "Current deviceId : {} and spans are : \n{}".format(
+            "Current deviceId : {} and spans are : {}".format(
                 current_rec_device_id, current_rec_device_id_spans
             )
         )
@@ -912,7 +1107,7 @@ def handler(event, context):
         dt_array_start_time = rec[0]["timeStamp"]
 
         logger.info(
-            "Faulty times are : {}\t{}\t{}\t{}".format(
+            "Times are : {}\t{}\t{}\t{}".format(
                 array_end_time,
                 array_start_time,
                 dt_array_end_time,
@@ -925,64 +1120,16 @@ def handler(event, context):
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
         )
-        logger.info(
-            "Things found after processing spans : {}\t{}\t{}".format(
-                all_spans, spanId_for_tagging, modified
+
+        ############################################################
+        # update the of spans for specific device for speficic day #
+        ############################################################
+        date_device_ODM_object[day][current_rec_device_id]["spans"] = all_spans
+        logger.debug(
+            "Date Device ODM object after finding spans : {}".format(
+                date_device_ODM_object
             )
         )
-        logger.info("All spans after finding everything : {}".format(all_spans))
-
-        ###################################
-        # update the global list of spans #
-        ###################################
-        logger.info("Current deviceId : {}".format(current_rec_device_id))
-        logger.info(
-            "Current deviceId spans are : {}".format(
-                current_rec_device_id_spans
-            )
-        )
-        logger.info("Updated Spans Device Dict : {}".format(device_spans_dict))
-        # print(current_rec_device_id)
-
-        if device_spans_dict != []:
-            for i in device_spans_dict:
-                # print(i)
-                if i["deviceId"] == current_rec_device_id:
-                    logger.info(
-                        "Found the span - updating their all span and adding modified tag"
-                    )
-                    i["spans"] = all_spans
-                    i["modified"] = 1
-                elif i == device_spans_dict[-1]:
-                    device_spans_dict.append(
-                        {
-                            "deviceId": current_rec_device_id,
-                            "spans": all_spans,
-                            "modified": 1,
-                        }
-                    )
-        else:
-            device_spans_dict.append(
-                {
-                    "deviceId": current_rec_device_id,
-                    "spans": all_spans,
-                    "modified": 1,
-                }
-            )
-
-        logger.info("modified Updated span dict : {}".format(device_spans_dict))
-
-        logger.info("Here")
-        device_spans_dict = list(
-            {v["deviceId"]: v for v in device_spans_dict}.values()
-        )
-        logger.info(
-            "Device Spans after duplicate removal : {}".format(
-                device_spans_dict
-            )
-        )
-
-        # clean up the list of d
 
         ##############################################
         # Tag all valid points in the current record #
@@ -1001,14 +1148,14 @@ def handler(event, context):
     ###################################################
     # batch update the devices whose spans we updated #
     ###################################################
-
-    update_modified_device_spans_in_dynamo_using_ODM(device_spans_dict)
+    # update_modified_device_spans_in_dynamo_using_ODM2(device_spans_dict)
+    update_modified_device_spans_in_dynamo_using_ODM(date_device_ODM_object)
 
     #########################################
     # Writing tagged data to kinesis stream #
     #########################################
     send_tagged_data_to_kinesis(tagged_data)
 
-    logger.info("Starting...Done")
+    logger.info("\nAt the end : \n{}".format(pformat(date_device_ODM_object)))
 
-    return "Succesful"
+    return date_device_ODM_object
