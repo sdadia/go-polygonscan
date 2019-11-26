@@ -66,7 +66,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
     ddb = dynamo_dbcon(SpanModel, Connection(host="http://localhost:8000"))
     ddb.connect()
 
-    # @unittest.SkipTest
+    @unittest.SkipTest
     def test_handler(self,):
         # file_name = "small_event.json"
         file_name = "big_event.json"
@@ -532,6 +532,8 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             self.assertEqual(e1, e2)
         pprint(output)
 
+    # skip as tables need to be created in advance for this test
+    @unittest.SkipTest
     def test_get_data_for_device_from_particular_table_using_OMD(self):
         data = [
             {"date": "24112019", "deviceId": "1"},
