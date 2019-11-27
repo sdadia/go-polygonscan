@@ -9,7 +9,7 @@ import sys
 import unittest
 from pprint import pformat, pprint
 
-# os.environ["localhost"] = "1"
+os.environ["localhost"] = "1"
 os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
 os.environ[
     "SpanDynamoDBTableName"
@@ -710,7 +710,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         )
         pprint(output)
         expected_output = {
-                "24112019": {"1": {"deviceId": "1", "spans": []}},
+            "24112019": {"1": {"deviceId": "1", "spans": []}},
             "25112019": {
                 "1": {"deviceId": "1", "spans": []},
                 "2": {"deviceId": "2", "spans": []},
@@ -723,6 +723,193 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             for e1, e2 in zip(sorted(output[k1]), sorted(expected_output[k2])):
                 print(output[k1][e1], expected_output[k2][e2])
                 self.assertEqual(output[k1][e1], expected_output[k2][e2])
+
+    @mock.patch("Functions.CreateTimeseriesRecord.index.generate_uuid")
+    @mock.patch(
+        "Functions.CreateTimeseriesRecord.index.get_all_records_in_event"
+    )
+    def test_backfill_data_goes_to_correct_span(
+        self, mock_get_all_records_in_event, mock_generate_uuid
+    ):
+        # SpanModel.Meta.table_name = os.environ["SpanDynamoDBTableName"] + "23112019"
+        # SpanModel.create_table()
+        # time.sleep(10)
+        # 8 to 8 :10                                  8:29 to 8:32
+        # 8:20 to 8:25 - 8:26 to 8:28
+        mock_generate_uuid.side_effect = ["span_id_1", "span_id_2", "span_id_3"]
+        mock_get_all_records_in_event.return_value = [
+            [  # 8:00 am to 8:10 am
+                {
+                    "timeStamp": "2019-11-23T08:00:00.000Z",
+                    "acc": "1",
+                    "io": "11111111",
+                    "gps": {
+                        "status": "valid",
+                        "gpsTime": "2019-11-23T08:00:00.000Z",
+                        "lat": "53.337240N",
+                        "lng": "6.233178W",
+                        "speed": "7.45",
+                        "course": "259.760",
+                    },
+                    "deviceId": "4",
+                },
+                {
+                    "timeStamp": "2019-11-23T08:10:00.000Z",
+                    "acc": "1",
+                    "io": "11111111",
+                    "gps": {
+                        "status": "valid",
+                        "gpsTime": "2019-11-23T08:10:00.000Z",
+                        "lat": "53.337240N",
+                        "lng": "6.233178W",
+                        "speed": "7.45",
+                        "course": "259.760",
+                    },
+                    "deviceId": "4",
+                },
+            ],
+            [  # 8:26 to 8:28 am
+                {
+                    "timeStamp": "2019-11-23T08:26:00.000Z",
+                    "acc": "1",
+                    "io": "11111111",
+                    "gps": {
+                        "status": "valid",
+                        "gpsTime": "2019-11-23T08:26:00.000Z",
+                        "lat": "53.337240N",
+                        "lng": "6.233178W",
+                        "speed": "7.45",
+                        "course": "259.760",
+                    },
+                    "deviceId": "4",
+                },
+                {
+                    "timeStamp": "2019-11-23T08:28:00.000Z",
+                    "acc": "1",
+                    "io": "11111111",
+                    "gps": {
+                        "status": "valid",
+                        "gpsTime": "2019-11-23T08:28:00.000Z",
+                        "lat": "53.337240N",
+                        "lng": "6.233178W",
+                        "speed": "7.45",
+                        "course": "259.760",
+                    },
+                    "deviceId": "4",
+                },
+            ],
+            [  # 8:20 to 8:25 am
+                {
+                    "timeStamp": "2019-11-23T08:20:00.000Z",
+                    "acc": "1",
+                    "io": "11111111",
+                    "gps": {
+                        "status": "valid",
+                        "gpsTime": "2019-11-23T08:20:00.000Z",
+                        "lat": "53.337240N",
+                        "lng": "6.233178W",
+                        "speed": "7.45",
+                        "course": "259.760",
+                    },
+                    "deviceId": "4",
+                },
+                {
+                    "timeStamp": "2019-11-23T08:25:00.000Z",
+                    "acc": "1",
+                    "io": "11111111",
+                    "gps": {
+                        "status": "valid",
+                        "gpsTime": "2019-11-23T08:25:00.000Z",
+                        "lat": "53.337240N",
+                        "lng": "6.233178W",
+                        "speed": "7.45",
+                        "course": "259.760",
+                    },
+                    "deviceId": "4",
+                },
+            ],
+            [  # 8:29 to 8:32 am  -- back data
+                {
+                    "timeStamp": "2019-11-23T08:29:00.000Z",
+                    "acc": "1",
+                    "io": "11111111",
+                    "gps": {
+                        "status": "valid",
+                        "gpsTime": "2019-11-23T08:29:00.000Z",
+                        "lat": "53.337240N",
+                        "lng": "6.233178W",
+                        "speed": "7.45",
+                        "course": "259.760",
+                    },
+                    "deviceId": "4",
+                },
+                {
+                    "timeStamp": "2019-11-23T08:32:00.000Z",
+                    "acc": "1",
+                    "io": "11111111",
+                    "gps": {
+                        "status": "valid",
+                        "gpsTime": "2019-11-23T08:32:00.000Z",
+                        "lat": "53.337240N",
+                        "lng": "6.233178W",
+                        "speed": "7.45",
+                        "course": "259.760",
+                    },
+                    "deviceId": "4",
+                },
+            ],
+        ]
+        handler(None, None)
+
+        spans = get_data_for_device_from_particular_table_using_OMD(
+            [{"date": "23112019", "deviceId": "4"}]
+        )
+        expected_spans = {
+            "23112019": {
+                "4": {
+                    "deviceId": "4",
+                    "spans": [
+                        {
+                            "end_time": datetime.datetime(
+                                2019,
+                                11,
+                                23,
+                                8,
+                                10,
+                                tzinfo=datetime.timezone.utc,
+                            ),
+                            "spanId": "span_id_1",
+                            "start_time": datetime.datetime(
+                                2019, 11, 23, 8, 0, tzinfo=datetime.timezone.utc
+                            ),
+                        },
+                        {
+                            "end_time": datetime.datetime(
+                                2019,
+                                11,
+                                23,
+                                8,
+                                32,
+                                tzinfo=datetime.timezone.utc,
+                            ),
+                            "spanId": "span_id_2",
+                            "start_time": datetime.datetime(
+                                2019,
+                                11,
+                                23,
+                                8,
+                                20,
+                                tzinfo=datetime.timezone.utc,
+                            ),
+                        },
+                    ],
+                }
+            }
+        }
+
+        for e1, e2 in zip(spans['23112019']["4"]['spans'], expected_spans["23112019"]["4"]['spans']):
+            self.assertEqual(e1, e2)
+
 
 
 def suite():
