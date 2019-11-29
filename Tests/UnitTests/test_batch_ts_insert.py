@@ -1,14 +1,15 @@
 import json
 import datetime
 import ciso8601
+import time
 import logging
 import os
 import sys
 import unittest
 from pprint import pformat, pprint
 
-from pvapps_odm.Schema.models import TSModelB
-
+os.environ["TSModelCTable"] = "sahil_test_TSMODELC"
+# os.environ["localhost"] = "1"
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,11 +18,11 @@ sys.path.append(
 from Functions.BatchInsertTSRecords.index import (
     handler,
     extract_data_from_kinesis,
-    put_data_into_TS_dynamo_modelB,
+    put_data_into_TS_dynamo_modelC,
 )
 
 from pvapps_odm.ddbcon import dynamo_dbcon
-from pvapps_odm.Schema.models import TSModelB
+from pvapps_odm.Schema.models import TSModelC
 from pvapps_odm.ddbcon import Connection
 
 
@@ -34,8 +35,26 @@ import mock
 
 class TestBatchTSInsert(unittest.TestCase):
 
-    ddb_test = dynamo_dbcon(TSModelB, conn=Connection())
-    ddb_test.connect()
+    if "localhost" in os.environ:
+        print("Testing on localhost")
+        ddb = dynamo_dbcon(TSModelC, Connection(host="http://localhost:8000"))
+    else:
+        ddb = dynamo_dbcon(TSModelC)
+    ddb.connect()
+
+    @classmethod
+    def setUpClass(cls):
+        TSModelC.create_table()
+        if "localhost" in os.environ:
+            time.sleep(1)
+        else:
+            time.sleep(10)
+
+    @classmethod
+    def tearDownClass(cls):
+        if "localhost" in os.environ:
+            time.sleep(1)
+            TSModelC.delete_table()
 
     def test_extract_data_from_kinesis(self):
         with open("sample_ts_insert_input.json") as f:
@@ -99,7 +118,7 @@ class TestBatchTSInsert(unittest.TestCase):
         for e1, e2 in zip(extracted_data, expected_extracted_data):
             self.assertEqual(e1, e2)
 
-    def test_put_data_into_TS_dynamo_modelB(self):
+    def test_put_data_into_TS_dynamo_modelC(self):
         data = [
             {
                 "acc": "1",
@@ -125,150 +144,69 @@ class TestBatchTSInsert(unittest.TestCase):
                 "spanId": "f565bfdd-38e4-4533-b6a4-32112044c3b7",
                 "speed": "1.31492",
                 "status": "valid",
-                "timestamp": "2019-10-18 13:00:00.004000+00:00",
+                "timestamp": "2019-10-18 13:00:01.004000+00:00",
             },
         ]
 
-        put_data_into_TS_dynamo_modelB(data)
+        ans = put_data_into_TS_dynamo_modelC(data)
+        pprint(ans)
 
-        for d in data:
-
-            Key = (
-                d["deviceId"]
-                + "_"
-                + str(
-                    ciso8601.parse_datetime(d["timestamp"]).strftime("%Y-%m-%d")
-                )
-            )
-
-            self.assertEqual(
-                self.ddb_test.get_object(
-                    Key + "_speed",
-                    ciso8601.parse_datetime(d["timestamp"]).timestamp(),
-                ).value,
-                d["speed"],
-            )
-            self.assertEqual(
-                self.ddb_test.get_object(
-                    Key + "_longitude",
-                    ciso8601.parse_datetime(d["timestamp"]).timestamp(),
-                ).value,
-                d["lng"],
-            )
-
-            self.assertEqual(
-                self.ddb_test.get_object(
-                    Key + "_latitude",
-                    ciso8601.parse_datetime(d["timestamp"]).timestamp(),
-                ).value,
-                d["lat"],
-            )
-
-    def test_put_duplicate_data_into_TSModelB(self):
+    def test_put_data_into_TS_dynamo_modelC_duplicate_data(self):
         data = [
             {
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "gpsTime": "2019-10-18T10:00:00.000Z",
+                "gpsTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
-                "spanId": "xxx5",
+                "spanId": "f565bfdd-38e4-4533-b6a4-32112044c3b7",
                 "speed": "1.31492",
                 "status": "valid",
-                "timestamp": "2019-10-18 10:00:00.000Z",
+                "timestamp": "2019-10-18 13:00:00.004000+00:00",
             },
-            {
+            {  # duplicate data
                 "acc": "1",
                 "course": "331.47",
-                "deviceId": "111",
-                "gpsTime": "2019-10-18T13:00:00.000Z",
+                "deviceId": "112",
+                "gpsTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
-                "spanId": "xxx5",
+                "spanId": "f565bfdd-38e4-4533-b6a4-32112044c3b7",
                 "speed": "1.31492",
                 "status": "valid",
-                "timestamp": "2019-10-18 13:00:00.000Z",
-            },
-            ## duplicate row of the above
-            {
-                "acc": "1",
-                "course": "331.47",
-                "deviceId": "111",
-                "gpsTime": "2019-10-18T13:00:00.000Z",
-                "io": "11111111",
-                "lat": "5319.84N",
-                "lng": "622.338W",
-                "spanId": "xxx5",
-                "speed": "1.31492",
-                "status": "valid",
-                "timestamp": "2019-10-18 13:00:00.000Z",
+                "timestamp": "2019-10-18 13:00:00.004000+00:00",
             },
         ]
 
-        put_data_into_TS_dynamo_modelB(data)
+        non_duplicate_models = put_data_into_TS_dynamo_modelC(data)
+        pprint(non_duplicate_models)
 
-        for d in data:
+        expected_non_duplicate_models_attr_values = [
+            {
+                "device_id": str(data[0]["deviceId"]),
+                "span_id": str(data[0]["spanId"]),
+                "tstime": ciso8601.parse_datetime(
+                    data[0]["timestamp"]
+                ).timestamp(),
+                "speed": str(data[0]["speed"]),
+                "gps_coords": {
+                    "lat": str(data[0]["lat"]),
+                    "lng": str(data[0]["lng"]),
+                    "gps_timestamp": str(data[0]["timestamp"]),
+                    "gps_valid": str(data[0]["status"]),
+                },
+            }
+        ]
+        expected_non_duplicate_models = [
+            TSModelC(**x) for x in expected_non_duplicate_models_attr_values
+        ]
 
-            Key = (
-                d["deviceId"]
-                + "_"
-                + str(
-                    ciso8601.parse_datetime(d["timestamp"]).strftime("%Y-%m-%d")
-                )
-            )
-            print(Key)
+        for m1, m2 in zip(non_duplicate_models, expected_non_duplicate_models):
+            self.assertEqual(hash(m1), hash(m2))
 
-            # test_speed = self.ddb_test.get_object( Key + "_speed", ciso8601.parse_datetime(d["timestamp"]).timestamp(), ).value,  d["speed"])
-
-            self.assertEqual(
-                self.ddb_test.get_object(
-                    Key + "_speed",
-                    ciso8601.parse_datetime(d["timestamp"]).timestamp(),
-                ).value,
-                d["speed"],
-            )
-            print(
-                self.ddb_test.get_object(
-                    Key + "_speed",
-                    ciso8601.parse_datetime(d["timestamp"]).timestamp(),
-                ).value
-            )
-            print(Key + "_speed")
-
-            self.assertEqual(
-                self.ddb_test.get_object(
-                    Key + "_longitude",
-                    ciso8601.parse_datetime(d["timestamp"]).timestamp(),
-                ).value,
-                d["lng"],
-            )
-            print(
-                self.ddb_test.get_object(
-                    Key + "_longitude",
-                    ciso8601.parse_datetime(d["timestamp"]).timestamp(),
-                ).value
-            )
-            print(Key + "_longitude")
-
-            self.assertEqual(
-                self.ddb_test.get_object(
-                    Key + "_latitude",
-                    ciso8601.parse_datetime(d["timestamp"]).timestamp(),
-                ).value,
-                d["lat"],
-            )
-            print(
-                self.ddb_test.get_object(
-                    Key + "_latitude",
-                    ciso8601.parse_datetime(d["timestamp"]).timestamp(),
-                ).value
-            )
-            print(Key + "_latitude")
-
-    # @unittest.SkipTest
     def test_handler(self):
         with open("sample_ts_insert_input.json") as f:
             event = json.load(f)
