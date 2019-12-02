@@ -113,16 +113,16 @@ Resources:
     Properties:
       AttributeDefinitions:
         - 
-          AttributeName: spanId
+          AttributeName: span_id
           AttributeType: S
-        - AttributeName: timestamp
-          AttributeType: S
+        - AttributeName: tstime
+          AttributeType: N
       KeySchema:
         -
-          AttributeName: spanId
+          AttributeName: span_id
           KeyType: HASH
         -
-          AttributeName: timestamp
+          AttributeName: tstime
           KeyType: RANGE
       ProvisionedThroughput:
         ReadCapacityUnits: 1
@@ -264,6 +264,7 @@ Resources:
       Role: !GetAtt LambdaExecutionRoleDDBKinesis.Arn 
       Environment:
         Variables:
+          TSModelCTable: !Ref TimeseriesTable
           TSDynamoDBTableName: !Sub
             - ${ProjectId}-${Stage}-${ServiceName}-${TableName}-
             - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref TSTablePrefix ,Stage: !Ref Stage }
