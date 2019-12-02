@@ -3,13 +3,15 @@ import logging
 import os
 import sys
 import unittest
-from pprint import pprint, pformat
+from pprint import pprint
 import json
 
 # this contains the code for trip calculation
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
+os.environ["SpanDynamoDBTableName"] = "pvcam-prod-TripCalculation-SpanTable-"
+os.environ["AggregateTable"] = "mango"
 
 
 logger = logging.getLogger()
@@ -204,7 +206,7 @@ class Test_trip_calculator_pandas(unittest.TestCase):
         self.assertLessEqual(len(ans), len(self.data))
         self.assertDictEqual(ans, expected_output)
 
-    @unittest.SkipTest
+    # @unittest.SkipTest
     def test_handler(self):
         from Functions.CalculateTrips.index import handler
 

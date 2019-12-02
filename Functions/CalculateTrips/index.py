@@ -3,19 +3,19 @@ from boto3.dynamodb.conditions import Key
 from jsonschema import ValidationError, validate
 from operator import itemgetter
 from pprint import pformat, pprint
+from typing import List
 import amazondax
-import ciso8601
 import boto3
-import pytz
 import botocore
+import ciso8601
 import datetime
-import dynamo_helper
 import json
 import logging
 import numpy as np
 import os
 import pandas as pd
-import time
+import pytz
+import sys
 
 from pvapps_odm.Schema.models import (
     SpanModel,
@@ -46,15 +46,16 @@ logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 ##                                                  ##
 ######################################################
 env_vars = {}
-envVarsList = ["SpanTable", "AggregateTable", "DAXUrl"]
+envVarsList = ["SpanDynamoDBTableName", "AggregateTable", "DAXUrl"]
 
 for var in envVarsList:
     if var in os.environ.keys():
         env_vars[var] = os.environ[var]
 
-env_vars["SpanDynamoDBTableName"] = str(SpanModel.Meta.table_name)
+# env_vars["SpanDynamoDBTableName"] = str(SpanModel.Meta.table_name)
 # SpanModel.Meta.table_name = env_vars['SpanDynamoDBTableName']
-env_vars["AggregateTable"] = str(AggregationModel.Meta.table_name)
+# env_vars["AggregateTable"] = str(AggregationModel.Meta.table_name)
+env_vars["AggregateTable"] = env_vars["AggregateTable"]
 print(SpanModel.Meta.table_name)
 logging.info("Environment variables are : {}".format(env_vars))
 
@@ -235,59 +236,6 @@ def get_trips_pandas(
     return final_result_set
 
 
-def get_span_data_from_dynamo_dax(deviceId):
-    logging.info(
-        "Getting span data from dynamoDAX for deviceId : {}".format(deviceId)
-    )
-
-    response = dynamo_dax_client.get_item(
-        TableName=str(env_vars["SpanTable"]),
-        Key={"deviceId": {"S": str(deviceId)}},
-    )
-
-    logging.info("response from dax : {}".format(response))
-
-    logging.info(
-        "Getting span data from dynamoDAX for deviceId : {}...Done".format(
-            deviceId
-        )
-    )
-
-    if "Item" not in response.keys():
-        logging.warn("No Span Records exist for deviceId : {}".format(deviceId))
-        return []
-    else:
-        deserialized_data = dynamo_helper.deserializer_from_ddb(
-            response["Item"], deserializer
-        )
-
-        if "spans" in deserialized_data.keys():
-            return json.loads(deserialized_data["spans"])
-        else:
-            logging.warn(
-                "No Span Data exists for deviceId : {}".format(deviceId)
-            )
-            return []
-
-
-def get_span_data_from_dynamo_dax_using_ODM(deviceId):
-    logging.info(
-        "Getting span data from dynamoDAX for deviceId : {}".format(deviceId)
-    )
-
-    response = ddb_span.batch_get([deviceId])
-
-    logging.info("response from dax : {}".format(response))
-
-    if response == []:
-        # hasattr(response, "Item")
-        logging.warn("No Span Data exist for deviceId : {}".format(deviceId))
-        return []
-    else:
-        return json.loads((response[0].attribute_values)["spans"])
-        # return json.loads(deserialized_data["spans"])
-
-
 def preprocess_list_of_spans(list_of_spans_dict):
     """
     Sorts the list of span which we get from dyamo accoding to the start_time
@@ -368,9 +316,11 @@ def aggregate_speed_for_trip(spanIds):
 
     all_data = []
     for sp in spanIds:
-        response = ddb_agg.session.query(sp + "_speed", None)
-        # print(response)
-        all_data.extend(response)
+        try:
+            response = ddb_agg.session.query(sp + "_speed", None)
+            all_data.extend(response)
+        except Exception as error:
+            logger.error("Got an error : {}".format(error))
 
     speed_data = [x.attribute_values for x in all_data]
     # pprint(all_data)
@@ -422,7 +372,7 @@ def get_stationary_idling_state_transitions(deviceId):
 
 
 def find_actual_time_from_state_transitons(state_transition_dictionary):
-    print(state_transition_dictionary)
+    # print(state_transition_dictionary)
     C = state_transition_dictionary["curr"]
     T = state_transition_dictionary["time"]
     started = False
@@ -555,12 +505,6 @@ def aggregate_stationary_idling_time(
     idling_state_transition, stationary_state_transition = get_stationary_idling_state_transitions(
         deviceId
     )
-    print(
-        "Here",
-        stationary_state_transition,
-        idling_state_transition,
-        type(idling_state_transition["time"]),
-    )
 
     if stationary_state_transition["time"]:
         stationary_state_transition = keep_relevant_data_for_stationary_idling_btw_start_end_time(
@@ -622,8 +566,92 @@ def aggregate_stationary_idling_time(
     }
 
 
+def get_spans_for_device_from_partiuclar_table(
+    date_device_dictionary_list: List
+):
+    """
+    Expected input : [{'date': '24112019', 'deviceId': '1'},
+     {'date': '25112019', 'deviceId': '1'},
+     {'date': '25112019', 'deviceId': '2'}]
+
+    Expected output : 
+    {'24112019': {'1': SpanModel(deviceId='1', spans='abc')},
+     '25112019': {'1': SpanModel(deviceId='1', spans='pqr'),
+                  '2': SpanModel(deviceId='2', spans='[]'),
+                  '3': SpanModel(deviceId='3', spans='[]')}}
+    """
+    data = {}
+    for val in date_device_dictionary_list:
+        date = val["date"]
+        deviceId = val["deviceId"]
+        if date not in data.keys():
+            data[date] = []
+        if deviceId not in data[date]:
+            data[date].append(deviceId)
+
+    data2 = {}
+    for date in data:
+
+        SpanModel.Meta.table_name = env_vars["SpanDynamoDBTableName"] + date
+        SpanModel._connection = (
+            None
+        )  # after changing model's table name - set it to none
+        ddb = dynamo_dbcon(SpanModel, conn=Connection())
+        ddb.connect()
+
+        ans = data[date]
+        ODM_ans = ddb.batch_get(data[date])
+
+        if len(data[date]) != len(ODM_ans):
+            missing_deviceids = list(
+                set(data[date]) - set([x.deviceId for x in ODM_ans])
+            )
+
+            for devid in missing_deviceids:
+                ODM_ans.append(SpanModel(**{"deviceId": devid, "spans": []}))
+
+        for d in ODM_ans:
+            if date not in data2:
+                data2[date] = {}
+            data2[date][d.deviceId] = d
+
+    data3 = {}
+    for date in data2:
+        for deviceId, model in data2[date].items():
+            if date not in data3:
+                data3[date] = {}
+
+            data3[date][deviceId] = model.attribute_values
+            try:
+                data3[date][deviceId]["spans"] = format_spans(
+                    json.loads(data3[date][deviceId]["spans"])
+                )
+            except TypeError as e:
+                pass
+
+    return data3
+
+
+def format_spans(
+    span_list, to_format_as_time=["start_time", "end_time"], as_datetime=True
+):
+    logger.info("Formatting span data")
+
+    if as_datetime:
+        for x in span_list:
+            for t in to_format_as_time:
+                x[t] = ciso8601.parse_datetime(x[t])
+                # x[t] = datetime.datetime.strptime(x[t], DATETIME_FORMAT)
+    else:
+        for x in span_list:
+            for t in to_format_as_time:
+                x[t] = str(x[t])
+
+    logger.info("Formatting span data...Done")
+    return span_list
+
+
 def handler(event, context):
-    # print(event)
     logging.info("Given API query : \n{}".format(pformat(event)))
 
     logging.info("Parsing event")
@@ -644,9 +672,35 @@ def handler(event, context):
         event["trip_time_diff"] = TRIP_TIME_DIFF
 
     # query device from dynamo and get all the spans
-    span_data = get_span_data_from_dynamo_dax_using_ODM(event["deviceId"])
-    logging.info("returned span data : {}".format(span_data))
 
+    # create the device date dictionary from start and end time of the query
+    # [{'date': '24112019', 'deviceId': '1'},
+    # {'date': '25112019', 'deviceId': '1'},
+    date_device_dictionary_list = []
+    start_day = ciso8601.parse_datetime(event["start_datetime"])
+    date = start_day
+    end_day = ciso8601.parse_datetime(event["end_datetime"])
+    while date <= end_day:
+        date_device_dictionary_list.append(
+            {
+                "deviceId": str(event["deviceId"]),
+                "date": date.strftime("%d%m%Y"),
+            }
+        )
+        date = date + datetime.timedelta(days=1)
+
+    # get the spans from different tables between these start and end time
+    date_device_ODM_object = get_spans_for_device_from_partiuclar_table(
+        date_device_dictionary_list
+    )
+    # extract the spans between these 2 times
+    span_data = []
+    for date in date_device_ODM_object:
+        spans = date_device_ODM_object[date][event["deviceId"]]["spans"]
+        if len(spans):
+            span_data.extend(spans)
+    logging.info("returned span data : {}".format(pformat(span_data)))
+    # sys.exit(1)
     # # if no spans are returned, then the trips does not exist
     if len(span_data) == 0:
         trips = {}
@@ -663,10 +717,14 @@ def handler(event, context):
         if trips == {}:
             logging.warning("No Trips found")
 
+        # # get other metrics - speed - stationary and idling time
         for trip_id in trips.keys():
             spanss = trips[trip_id]["spanId"]
 
-            # find average speed
+            if "metrics" not in trips[trip_id]:
+                trips[trip_id]["metrics"] = {}
+
+            # # find average speed
             trips[trip_id]["metrics"] = aggregate_speed_for_trip(spanss)
 
             # find the stationary and idling time
@@ -679,6 +737,5 @@ def handler(event, context):
 
     trips = {"trips": list(trips.values())}
 
-    pprint(trips)
-
+    logger.info("Calculated trips are : {}".format(trips))
     return trips
