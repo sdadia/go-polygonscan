@@ -731,6 +731,7 @@ def update_modified_device_spans_in_dynamo_using_ODM(date_device_ODM_object):
         try:
             ddb.session.commit_items()
         except Exception as e:
+
             logger.error("Got and Error : {}".format(e))
         # pprint(objects_to_write)
         # print("\n\n")
@@ -1004,6 +1005,7 @@ def get_data_for_device_from_particular_table_using_OMD(
                 data3[date][deviceId]["spans"] = format_spans(
                     json.loads(data3[date][deviceId]["spans"])
                 )
+                data3[date][deviceId]["spans"] = sort_data_by_date(data3[date][deviceId]["spans"], "end_time")
             except TypeError as e:
                 pass
 
