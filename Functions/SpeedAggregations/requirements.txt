@@ -2,5 +2,5 @@
 pandas
 aggregation-lib==0.1
 boto3
-pvapps-odm-dev==0.0.2
+pvapps-odm-dev
 ciso8601
