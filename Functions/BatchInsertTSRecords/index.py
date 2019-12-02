@@ -1,9 +1,8 @@
 from base64 import b64decode
-from pprint import pformat
-import boto3
 import ciso8601
 import json
 import logging
+from pprint import pformat
 import os
 
 from pvapps_odm.Schema.models import TSModelC
@@ -47,7 +46,6 @@ def extract_data_from_kinesis(event):
     all_records = []
     for r in event["Records"]:
         data = b64decode(r["kinesis"]["data"]).decode("utf-8")
-        print(data)
         data = json.loads(data)
         data = {**data, **data["gps"]}
         del data["gps"]
@@ -96,7 +94,7 @@ def put_data_into_TS_dynamo_modelC(data):
         ddb.session.add_items(non_duplicate_models)
         ddb.session.commit_items()
     except Exception as e:
-        logger.info ("Found unexpected error ; {}".format(e))
+        logger.info("Found unexpected error ; {}".format(e))
 
     return non_duplicate_models
 
