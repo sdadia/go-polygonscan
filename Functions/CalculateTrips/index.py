@@ -47,10 +47,6 @@ for var in envVarsList:
     if var in os.environ.keys():
         env_vars[var] = os.environ[var]
 
-# env_vars["SpanDynamoDBTableName"] = str(SpanModel.Meta.table_name)
-# SpanModel.Meta.table_name = env_vars['SpanDynamoDBTableName']
-# env_vars["AggregateTable"] = str(AggregationModel.Meta.table_name)
-env_vars["AggregateTable"] = env_vars["AggregateTable"]
 print(SpanModel.Meta.table_name)
 logging.info("Environment variables are : {}".format(env_vars))
 
@@ -59,19 +55,6 @@ logging.info("Environment variables are : {}".format(env_vars))
 ##      Database Connection Initialisation          ##
 ##                                                  ##
 ######################################################
-dynamodb_resource = boto3.resource("dynamodb")
-serializer = boto3.dynamodb.types.TypeSerializer()
-deserializer = boto3.dynamodb.types.TypeDeserializer()
-metric_table = dynamodb_resource.Table(env_vars["AggregateTable"])
-
-ddb_span = dynamo_dbcon(SpanModel, conn=Connection())
-ddb_span.connect()
-
-
-ddb_agg = dynamo_dbcon(AggregationModel, conn=Connection())
-ddb_agg.connect()
-
-
 ddb_stationary_idling = dynamo_dbcon(AggregationModel, conn=Connection())
 ddb_stationary_idling.connect()
 
