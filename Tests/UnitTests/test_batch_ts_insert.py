@@ -1,5 +1,4 @@
 import json
-import datetime
 import ciso8601
 import time
 import logging
@@ -9,7 +8,7 @@ import unittest
 from pprint import pformat, pprint
 
 os.environ["TSModelCTable"] = "sahil_test_TSMODELC"
-# os.environ["localhost"] = "1"
+os.environ["localhost"] = "1"
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -26,15 +25,13 @@ from pvapps_odm.Schema.models import TSModelC
 from pvapps_odm.ddbcon import Connection
 
 
-logger = logging.getLogger("test_batch_ts_insert")
+logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 import os
-import mock
 
 
 class TestBatchTSInsert(unittest.TestCase):
-
     if "localhost" in os.environ:
         print("Testing on localhost")
         ddb = dynamo_dbcon(TSModelC, Connection(host="http://localhost:8000"))
@@ -197,6 +194,7 @@ class TestBatchTSInsert(unittest.TestCase):
                     "lng": str(data[0]["lng"]),
                     "gps_timestamp": str(data[0]["timestamp"]),
                     "gps_valid": str(data[0]["status"]),
+                    "course": str(data[0]["course"]),
                 },
             }
         ]

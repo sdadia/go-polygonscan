@@ -1,6 +1,5 @@
 from base64 import b64decode
 from pprint import pformat
-import boto3
 import ciso8601
 import json
 import logging
@@ -8,9 +7,6 @@ import os
 
 from pvapps_odm.Schema.models import TSModelC
 from pvapps_odm.ddbcon import dynamo_dbcon, Connection
-
-# sess = dynamo_session(TSModelB)
-
 
 ###########
 # logging #
@@ -80,6 +76,7 @@ def put_data_into_TS_dynamo_modelC(data):
                 "lng": str(d["lng"]),
                 "gps_timestamp": str(d["timestamp"]),
                 "gps_valid": str(d["status"]),
+                "course": str(d["course"]),
             },
         }
 
@@ -96,13 +93,12 @@ def put_data_into_TS_dynamo_modelC(data):
         ddb.session.add_items(non_duplicate_models)
         ddb.session.commit_items()
     except Exception as e:
-        logger.info ("Found unexpected error ; {}".format(e))
+        logger.info("Found unexpected error ; {}".format(e))
 
     return non_duplicate_models
 
 
 def handler(event, context):
-
     data = extract_data_from_kinesis(event)
 
     put_data_into_TS_dynamo_modelC(data)
