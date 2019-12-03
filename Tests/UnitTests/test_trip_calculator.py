@@ -10,17 +10,19 @@ import json
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-os.environ["SpanDynamoDBTableName"] = "pvcam-prod-TripCalculation-SpanTable-"
+# os.environ["SpanDynamoDBTableName"] = "pvcam-prod-TripCalculation-SpanTable-"
+os.environ["SpanDynamoDBTableName"] = "Trip-calc"
 os.environ["AggregateTable"] = "mango"
 
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
+from pvapps_odm.Schema.models import SpanModel, AggregationModel, StationaryIdlingModel
 from Functions.CalculateTrips.index import (
-    AggregationModel,
-    StationaryIdlingModel,
-    SpanModel,
+    # AggregationModel,
+    # StationaryIdlingModel,
+    # SpanModel,
     aggregate_speed_for_trip,
     aggregate_stationary_idling_time,
     keep_relevant_data_for_stationary_idling_btw_start_end_time,
@@ -206,7 +208,7 @@ class Test_trip_calculator_pandas(unittest.TestCase):
         self.assertLessEqual(len(ans), len(self.data))
         self.assertDictEqual(ans, expected_output)
 
-    # @unittest.SkipTest
+    @unittest.SkipTest
     def test_handler(self):
         from Functions.CalculateTrips.index import handler
 
@@ -328,6 +330,7 @@ class Test_trip_calculator_pandas(unittest.TestCase):
         self.assertEqual(stationry_idling_time_dict["stationary_time"], 0)
         self.assertEqual(stationry_idling_time_dict["idling_time"], 0)
 
+    @unittest.SkipTest
     @mock.patch("Functions.CalculateTrips.index.ddb_stationary_idling")
     @mock.patch("Functions.CalculateTrips.index.ddb_agg")
     @mock.patch("Functions.CalculateTrips.index.ddb_span")

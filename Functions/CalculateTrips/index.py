@@ -2,7 +2,7 @@
 from boto3.dynamodb.conditions import Key
 from jsonschema import ValidationError, validate
 from operator import itemgetter
-from pprint import pformat, pprint
+from pprint import pformat
 from typing import List
 import amazondax
 import boto3
@@ -15,13 +15,8 @@ import numpy as np
 import os
 import pandas as pd
 import pytz
-import sys
 
-from pvapps_odm.Schema.models import (
-    SpanModel,
-    AggregationModel,
-    StationaryIdlingModel,
-)
+from pvapps_odm.Schema.models import SpanModel, AggregationModel, StationaryIdlingModel
 from pvapps_odm.ddbcon import dynamo_dbcon
 from pvapps_odm.ddbcon import Connection
 
@@ -574,7 +569,7 @@ def get_spans_for_device_from_partiuclar_table(
      {'date': '25112019', 'deviceId': '1'},
      {'date': '25112019', 'deviceId': '2'}]
 
-    Expected output : 
+    Expected output :
     {'24112019': {'1': SpanModel(deviceId='1', spans='abc')},
      '25112019': {'1': SpanModel(deviceId='1', spans='pqr'),
                   '2': SpanModel(deviceId='2', spans='[]'),
@@ -673,7 +668,7 @@ def handler(event, context):
 
     # query device from dynamo and get all the spans
 
-    # create the device date dictionary from start and end time of the query
+    # create the device-date dictionary from start and end time of the query
     # [{'date': '24112019', 'deviceId': '1'},
     # {'date': '25112019', 'deviceId': '1'},
     date_device_dictionary_list = []
@@ -717,15 +712,15 @@ def handler(event, context):
         if trips == {}:
             logging.warning("No Trips found")
 
-        # # get other metrics - speed - stationary and idling time
+        # get other metrics - speed - stationary and idling time
         for trip_id in trips.keys():
             spanss = trips[trip_id]["spanId"]
 
             if "metrics" not in trips[trip_id]:
                 trips[trip_id]["metrics"] = {}
 
-            # # find average speed
-            trips[trip_id]["metrics"] = aggregate_speed_for_trip(spanss)
+            # # find average speed - dan will find the speed
+            # trips[trip_id]["metrics"] = aggregate_speed_for_trip(spanss)
 
             # find the stationary and idling time
             stationry_idling_time_dict = aggregate_stationary_idling_time(
