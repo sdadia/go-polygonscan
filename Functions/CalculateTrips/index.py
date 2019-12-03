@@ -16,7 +16,11 @@ import os
 import pandas as pd
 import pytz
 
-from pvapps_odm.Schema.models import SpanModel, AggregationModel, StationaryIdlingModel
+from pvapps_odm.Schema.models import (
+    SpanModel,
+    AggregationModel,
+    StationaryIdlingModel,
+)
 from pvapps_odm.ddbcon import dynamo_dbcon
 from pvapps_odm.ddbcon import Connection
 
@@ -41,16 +45,12 @@ logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 ##                                                  ##
 ######################################################
 env_vars = {}
-envVarsList = ["SpanDynamoDBTableName", "AggregateTable", "DAXUrl"]
+envVarsList = ["SpanDynamoDBTableName"]
 
 for var in envVarsList:
     if var in os.environ.keys():
         env_vars[var] = os.environ[var]
 
-# env_vars["SpanDynamoDBTableName"] = str(SpanModel.Meta.table_name)
-# SpanModel.Meta.table_name = env_vars['SpanDynamoDBTableName']
-# env_vars["AggregateTable"] = str(AggregationModel.Meta.table_name)
-env_vars["AggregateTable"] = env_vars["AggregateTable"]
 print(SpanModel.Meta.table_name)
 logging.info("Environment variables are : {}".format(env_vars))
 
@@ -59,19 +59,6 @@ logging.info("Environment variables are : {}".format(env_vars))
 ##      Database Connection Initialisation          ##
 ##                                                  ##
 ######################################################
-dynamodb_resource = boto3.resource("dynamodb")
-serializer = boto3.dynamodb.types.TypeSerializer()
-deserializer = boto3.dynamodb.types.TypeDeserializer()
-metric_table = dynamodb_resource.Table(env_vars["AggregateTable"])
-
-ddb_span = dynamo_dbcon(SpanModel, conn=Connection())
-ddb_span.connect()
-
-
-ddb_agg = dynamo_dbcon(AggregationModel, conn=Connection())
-ddb_agg.connect()
-
-
 ddb_stationary_idling = dynamo_dbcon(AggregationModel, conn=Connection())
 ddb_stationary_idling.connect()
 
@@ -269,79 +256,6 @@ def preprocess_list_of_spans(list_of_spans_dict):
 
     logging.info("Formatting and sorting...Done")
     return data
-
-
-def get_speed_data_from_dynamo(spanIds):
-    """
-    Gets all the spans for a vehicle id
-    """
-    all_data = []
-    for sp in spanIds:
-        logging.info(
-            "Getting metric Data from DynaomoDB for spanId : {}".format(sp)
-        )
-        response = metric_table.query(
-            KeyConditionExpression=Key("spanId_MetricType").eq(
-                str(sp + "_speed")
-            )
-        )
-
-        logging.info(
-            "Len of response from DynamoDB is : {}".format(
-                len(response["Items"])
-            )
-        )
-        logging.info("Getting Data from DynaomoDB...Done")
-        all_data.extend(response["Items"])
-
-    logging.info("Speed data from aggregate table : {}".format(all_data))
-    if len(all_data) == 0:
-        logging.warn(
-            "No speed metrics found for given span Ids : {}".format(spanIds)
-        )
-    for r in all_data:
-        r["spanId"] = r.pop("spanId_metricname")
-        r["speed"] = r.pop("value")
-
-    return all_data
-
-
-def aggregate_speed_for_trip(spanIds):
-    # print(spanIds)
-
-    all_data = []
-    for sp in spanIds:
-        try:
-            response = ddb_agg.session.query(sp + "_speed", None)
-            all_data.extend(response)
-        except Exception as error:
-            logger.error("Got an error : {}".format(error))
-
-    speed_data = [x.attribute_values for x in all_data]
-    # pprint(all_data)
-
-    if len(speed_data) == 0:
-        return {"avg_speed": round(-1)}
-    else:
-        df = pd.DataFrame(speed_data)
-        df["speed_mul_count"] = df["value"] * df["count"]
-        avg_speed = df["speed_mul_count"].sum() / df["count"].sum()
-        avg_speed = float(avg_speed)
-        return {"avg_speed": round(avg_speed, 2)}
-
-
-def aggregate_speed_for_trip2(spanIds):
-
-    speed_data = get_speed_data_from_dynamo(spanIds)
-
-    if len(speed_data) == 0:
-        return {"avg_speed": -1}
-    else:
-        df = pd.DataFrame(speed_data)
-        df["speed_mul_count"] = df["speed"] * df["count"]
-        avg_speed = df["speed_mul_count"].sum() / df["count"].sum()
-        avg_speed = float(avg_speed) / 10.0
-        return {"avg_speed": float(avg_speed)}
 
 
 def get_stationary_idling_state_transitions(deviceId):
