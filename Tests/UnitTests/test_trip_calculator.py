@@ -10,8 +10,8 @@ import json
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-# os.environ["SpanDynamoDBTableName"] = "pvcam-prod-TripCalculation-SpanTable-"
-os.environ["SpanDynamoDBTableName"] = "Trip-calc"
+os.environ["SpanDynamoDBTableName"] = "pvcam-prod-TripCalculation-SpanTable-"
+# os.environ["SpanDynamoDBTableName"] = "Trip-calc"
 os.environ["AggregateTable"] = "mango"
 
 
@@ -20,10 +20,6 @@ logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 from pvapps_odm.Schema.models import SpanModel, AggregationModel, StationaryIdlingModel
 from Functions.CalculateTrips.index import (
-    # AggregationModel,
-    # StationaryIdlingModel,
-    # SpanModel,
-    aggregate_speed_for_trip,
     aggregate_stationary_idling_time,
     keep_relevant_data_for_stationary_idling_btw_start_end_time,
     handler,
@@ -208,10 +204,8 @@ class Test_trip_calculator_pandas(unittest.TestCase):
         self.assertLessEqual(len(ans), len(self.data))
         self.assertDictEqual(ans, expected_output)
 
-    @unittest.SkipTest
+    # @unittest.SkipTest
     def test_handler(self):
-        from Functions.CalculateTrips.index import handler
-
         with open("sample_trip_calculation_input.json") as f:
             event = json.load(f)
 

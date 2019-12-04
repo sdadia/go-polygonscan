@@ -2,7 +2,7 @@
 from boto3.dynamodb.conditions import Key
 from jsonschema import ValidationError, validate
 from operator import itemgetter
-from pprint import pformat
+from pprint import pformat, pprint
 from typing import List
 import amazondax
 import boto3
@@ -15,6 +15,7 @@ import numpy as np
 import os
 import pandas as pd
 import pytz
+from pynamodb.exceptions import TableDoesNotExist
 
 from pvapps_odm.Schema.models import (
     SpanModel,
@@ -509,7 +510,13 @@ def get_spans_for_device_from_partiuclar_table(
         ddb.connect()
 
         ans = data[date]
-        ODM_ans = ddb.batch_get(data[date])
+        # try to get the data, but if the table does not exist, then return empty span
+        try:
+            ODM_ans = ddb.batch_get(data[date])
+        except TableDoesNotExist as e:
+            logger.error("Error is : {}".format(e))
+            logger.error("Returning empty spans as we got an error")
+            ODM_ans = [SpanModel(**{"deviceId": deviceId, "spans": []})]
 
         if len(data[date]) != len(ODM_ans):
             missing_deviceids = list(
