@@ -93,7 +93,7 @@ def put_data_into_TS_dynamo_modelC(data):
         ddb.session.add_items(non_duplicate_models)
         ddb.session.commit_items()
     except Exception as e:
-        logger.info("Found unexpected error ; {}".format(e))
+        logger.error("Found unexpected error ; {}".format(e))
 
     return non_duplicate_models
 

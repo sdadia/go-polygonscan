@@ -7,7 +7,7 @@ import sys
 import unittest
 from pprint import pformat, pprint
 
-os.environ["TSModelCTable"] = "sahil_test_TSMODELC"
+os.environ["TSModelCTable"] = "sahil_test_TSMODELC_table"
 os.environ["localhost"] = "1"
 
 sys.path.append(
