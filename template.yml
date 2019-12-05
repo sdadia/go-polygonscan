@@ -380,3 +380,9 @@ Outputs:
     Value: !GetAtt CalculateTrips.Arn
     Export:
       Name: !Sub "${ProjectId}-CalculateTrips-${Stage}"
+
+  TSTableName:
+    # Used by the following:
+    # RestAPI: getTripSpanData
+    Value: !Ref TimeseriesTable
+    
