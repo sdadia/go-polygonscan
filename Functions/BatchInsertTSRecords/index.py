@@ -4,9 +4,11 @@ import json
 import logging
 from pprint import pformat
 import os
+import time
 
 from pvapps_odm.Schema.models import TSModelC
 from pvapps_odm.ddbcon import dynamo_dbcon, Connection
+from pynamodb.exceptions import TableError
 
 ###########
 # logging #
@@ -86,18 +88,38 @@ def put_data_into_TS_dynamo_modelC(data):
     non_duplicate_models = list(set(data_as_model))
     # warn user if duplicate values were removed
     if len(data_as_model) != len(non_duplicate_models):
-        logger.warning("Found some duplicate values, removing them")
+        logger.error(
+            "Found some duplicate values, removing them and moving on!"
+        )
 
     try:
         ddb.session.add_items(non_duplicate_models)
         ddb.session.commit_items()
-    except Exception as e:
-        logger.error("Found unexpected error ; {}".format(e))
+    # if you get a throttling error, thentry for 3 times, with increasing sleep
+    # time upto max of 3 seconds
+    except TableError as e:
+        logger.error("Found Table error : {}".format(e))
+        retry_number = 1
+        while retry_number <= 3:
+            try:
+                time.sleep(retry_number)
+                ddb.session.commit_items()
+                break
+            except TableError as e:
+                pass
+            retry_number += 1
+    except Exception as error:
+        logger.error("Found unexpected error : {}".format(error))
+        raise
+    if retry_number == 3:
+        logger.error("Retried 3 times. Moving on")
 
     return non_duplicate_models
 
 
 def handler(event, context):
+    logger.info("Event is : {}".format(event))
+
     data = extract_data_from_kinesis(event)
 
     put_data_into_TS_dynamo_modelC(data)
