@@ -92,6 +92,7 @@ def put_data_into_TS_dynamo_modelC(data):
             "Found some duplicate values, removing them and moving on!"
         )
 
+    retry_number = 1
     try:
         ddb.session.add_items(non_duplicate_models)
         ddb.session.commit_items()
@@ -99,7 +100,6 @@ def put_data_into_TS_dynamo_modelC(data):
     # time upto max of 3 seconds
     except TableError as e:
         logger.error("Found Table error : {}".format(e))
-        retry_number = 1
         while retry_number <= 3:
             try:
                 time.sleep(retry_number)

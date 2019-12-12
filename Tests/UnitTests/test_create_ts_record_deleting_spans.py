@@ -1,4 +1,3 @@
-import pytz
 import time
 import ciso8601
 import json
@@ -56,32 +55,15 @@ logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 import os
 import mock
-import time
 from pvapps_odm.ddbcon import dynamo_dbcon
 from pynamodb.connection import Connection
 
-
-class TestCreateTimeSeriesRecord(unittest.TestCase):    process_spans,
-    DATETIME_FORMAT,
-    update_modified_device_spans_in_dynamo_using_ODM,
-    _split_span_across_2_days,
-    _map_device_spans_to_date,
-    _split_records_across_days,
-    find_date_device_combos_from_records,
-    get_data_for_device_from_particular_table_using_OMD,
-)
 
 SpanModel.Meta.table_name = os.environ["SpanDynamoDBTableName"] + "23112019"
 
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
-
-import os
-import mock
-import time
-from pvapps_odm.ddbcon import dynamo_dbcon
-from pynamodb.connection import Connection
 
 
 class TestCreateTimeSeriesRecord(unittest.TestCase):
@@ -931,9 +913,11 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             }
         }
 
-        for e1, e2 in zip(spans['23112019']["4"]['spans'], expected_spans["23112019"]["4"]['spans']):
+        for e1, e2 in zip(
+            spans["23112019"]["4"]["spans"],
+            expected_spans["23112019"]["4"]["spans"],
+        ):
             self.assertEqual(e1, e2)
-
 
 
 def suite():
