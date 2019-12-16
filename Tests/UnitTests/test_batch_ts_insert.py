@@ -205,6 +205,65 @@ class TestBatchTSInsert(unittest.TestCase):
         for m1, m2 in zip(non_duplicate_models, expected_non_duplicate_models):
             self.assertEqual(hash(m1), hash(m2))
 
+
+    def test_put_data_into_TS_dynamo_modelC_duplicate_data_only_span_ts_are_same(self):
+        data = [
+            {
+                "acc": "1",
+                "course": "331.47",
+                "deviceId": "112",
+                "gpsTime": "2019-10-18T13:59:59.000Z",
+                "io": "11111111",
+                "lat": "5319.84N",
+                "lng": "622.338W",
+                "spanId": "f565bfdd-38e4-4533-b6a4-32112044c3b7",
+                "speed": "1.31492",
+                "status": "valid",
+                "timestamp": "2019-10-18 13:00:00.004000+00:00",
+            },
+            {  # duplicate data - gps is different
+                "acc": "1",
+                "course": "331.47",
+                "deviceId": "112",
+                "gpsTime": "2019-10-18T13:59:59.000Z",
+                "io": "11111111",
+                "lat": "531.84N", # gps diff
+                "lng": "62.338W", # gps diiff
+                "spanId": "f565bfdd-38e4-4533-b6a4-32112044c3b7",
+                "speed": "1.31492",
+                "status": "valid",
+                "timestamp": "2019-10-18 13:00:00.004000+00:00",
+            },
+        ]
+
+        non_duplicate_models = put_data_into_TS_dynamo_modelC(data)
+        pprint(non_duplicate_models)
+
+        expected_non_duplicate_models_attr_values = [
+            {
+                "device_id": str(data[0]["deviceId"]),
+                "span_id": str(data[0]["spanId"]),
+                "tstime": ciso8601.parse_datetime(
+                    data[0]["timestamp"]
+                ).timestamp(),
+                "speed": str(data[0]["speed"]),
+                "gps_coords": {
+                    "lat": str(data[0]["lat"]),
+                    "lng": str(data[0]["lng"]),
+                    "gps_timestamp": str(data[0]["timestamp"]),
+                    "gps_valid": str(data[0]["status"]),
+                    "course": str(data[0]["course"]),
+                },
+            }
+        ]
+        expected_non_duplicate_models = [
+            TSModelC(**x) for x in expected_non_duplicate_models_attr_values
+        ]
+
+        for m1, m2 in zip(non_duplicate_models, expected_non_duplicate_models):
+            self.assertEqual(hash(m1), hash(m2))
+
+
     def test_handler(self):
         with open("sample_ts_insert_input.json") as f:
             event = json.load(f)

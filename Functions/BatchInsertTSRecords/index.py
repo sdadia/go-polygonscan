@@ -91,6 +91,8 @@ def put_data_into_TS_dynamo_modelC(data):
         logger.error(
             "Found some duplicate values, removing them and moving on!"
         )
+        logger.error("The duplicates are based on the spanid and timestamp and NOT on the attribute values")
+        logger.error("The data is : {}".format(data))
 
     retry_number = 1
     try:
