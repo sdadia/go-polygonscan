@@ -72,10 +72,12 @@ def put_data_into_TS_dynamo_modelC(data):
             "span_id": str(d["spanId"]),
             "tstime": ciso8601.parse_datetime(d["timestamp"]).timestamp(),
             "speed": str(d["speed"]),
+            "io": str(d["io"]),
+            "acc": str(d["acc"]),
             "gps_coords": {
                 "lat": str(d["lat"]),
                 "lng": str(d["lng"]),
-                "gps_timestamp": str(d["timestamp"]),
+                "gps_timestamp": str(d["GPSTime"]),
                 "gps_valid": str(d["status"]),
                 "course": str(d["course"]),
             },
@@ -91,7 +93,9 @@ def put_data_into_TS_dynamo_modelC(data):
         logger.error(
             "Found some duplicate values, removing them and moving on!"
         )
-        logger.error("The duplicates are based on the spanid and timestamp and NOT on the attribute values")
+        logger.error(
+            "The duplicates are based on the spanid and timestamp and NOT on the attribute values"
+        )
         logger.error("The data is : {}".format(data))
 
     retry_number = 1
