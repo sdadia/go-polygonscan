@@ -50,7 +50,7 @@ def extract_data_from_kinesis(event):
         del data["gps"]
         all_records.append(data)
 
-    logger.debug("Extracted records are : \n{}".format(pformat(all_records)))
+    logger.info("Extracted records are : \n{}".format(pformat(all_records)))
 
     logger.info("Extracting data from Kinesis...Done")
 
@@ -71,13 +71,15 @@ def put_data_into_TS_dynamo_modelC(data):
             "device_id": str(d["deviceId"]),
             "span_id": str(d["spanId"]),
             "tstime": ciso8601.parse_datetime(d["timestamp"]).timestamp(),
+            "timezone" : str(d["timezone"]),
+            "dst" : str(d['offset']),
             "speed": str(d["speed"]),
             "io": str(d["io"]),
             "acc": str(d["acc"]),
             "gps_coords": {
                 "lat": str(d["lat"]),
                 "lng": str(d["lng"]),
-                "gps_timestamp": str(d["GPSTime"]),
+                "gps_timestamp": str(d["gpsTime"]),
                 "gps_valid": str(d["status"]),
                 "course": str(d["course"]),
             },
