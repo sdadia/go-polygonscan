@@ -487,10 +487,13 @@ def process_spans(all_spans, array_start_time, array_end_time, start_lat, start_
     if len(all_spans) == 0:
         newly_created_span = create_span(array_start_time[0], array_end_time[0])
         # create the start and end gps
-        newly_created_span['start_lat'] =  start_lat
-        newly_created_span['start_lng'] = start_lng
-        newly_created_span['end_lat'] =  end_lat
-        newly_created_span['end_lng'] = end_lng
+        if (start_lat is not None) and (end_lat is not None) and (start_lng is not None) and (end_lng is not None):
+            newly_created_span['start_lat'] =  start_lat
+            newly_created_span['start_lng'] = start_lng
+            newly_created_span['end_lat'] =  end_lat
+            newly_created_span['end_lng'] = end_lng
+        else:
+            logger.warn("Start lat, lng, end lat lng are none, will not update the GPS coordinates of the span")
 
         all_spans.append(newly_created_span)
         logger.warning(
@@ -512,11 +515,14 @@ def process_spans(all_spans, array_start_time, array_end_time, start_lat, start_
             newly_created_span = create_span(
                 array_start_time[0], array_end_time[0]
             )
-            # create the start and end gps
-            newly_created_span['start_lat'] =  start_lat
-            newly_created_span['start_lng'] = start_lng
-            newly_created_span['end_lat'] =  end_lat
-            newly_created_span['end_lng'] = end_lng
+            if (start_lat is not None) and (end_lat is not None) and (start_lng is not None) and (end_lng is not None):
+                # create the start and end gps
+                newly_created_span['start_lat'] =  start_lat
+                newly_created_span['start_lng'] = start_lng
+                newly_created_span['end_lat'] =  end_lat
+                newly_created_span['end_lng'] = end_lng
+            else:
+                logger.warn("Start lat, lng, end lat lng are none, will not update the GPS coordinates of the span")
 
             all_spans.append(newly_created_span)
             return all_spans, newly_created_span["spanId"], True
@@ -531,7 +537,10 @@ def process_spans(all_spans, array_start_time, array_end_time, start_lat, start_
             logger.info("Found a span. Updating {}".format(attrs_to_update))
             print(attrs_to_update)
             update_span(all_spans, span_index, attrs_to_update)
-            update_span_gps(all_spans, span_index, attrs_to_update,  start_lat, start_lng, end_lat, end_lng)
+            if (start_lat is not None) and (end_lat is not None) and (start_lng is not None) and (end_lng is not None):
+                update_span_gps(all_spans, span_index, attrs_to_update,  start_lat, start_lng, end_lat, end_lng)
+            else:
+                logger.warn("Start lat, lng, end lat lng are none, will not update the GPS coordinates of the span")
 
             return all_spans, span_id, True
 
@@ -1136,11 +1145,17 @@ def handler(event, context):
         #################
         # extract valid records only
         valid_records_for_gps = [x for x in rec if x['gps']['status'] != "invalid"]
-        start_lat = valid_records_for_gps[0]["gps"]['lat']
-        start_lng = valid_records_for_gps[0]["gps"]['lng']
+        if len(valid_records_for_gps) > 0:
+            start_lat = valid_records_for_gps[0]["gps"]['lat']
+            start_lng = valid_records_for_gps[0]["gps"]['lng']
+            end_lat = valid_records_for_gps[-1]["gps"]['lat']
+            end_lng = valid_records_for_gps[-1]["gps"]['lng']
+        else:
+            start_lat = None
+            start_lng = None
+            end_lat = None
+            end_lng = None
 
-        end_lat = valid_records_for_gps[-1]["gps"]['lat']
-        end_lng = valid_records_for_gps[-1]["gps"]['lng']
 
         array_end_time = rec[-1]["timeStamp"]
         array_start_time = rec[0]["timeStamp"]
@@ -1181,7 +1196,7 @@ def handler(event, context):
         ##############################################
         for r in rec:
             r["spanId"] = spanId_for_tagging
-            r["timestamp"] = str(r["timeStamp"])
+            r["timeStamp"] = str(r["timeStamp"])
             del r["timeStamp"]
             tagged_data.append(r)
 

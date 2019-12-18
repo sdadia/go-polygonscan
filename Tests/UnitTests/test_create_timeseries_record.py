@@ -992,6 +992,76 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         self.assertEqual(all_spans[0]["end_lat"], "3")
         self.assertEqual(all_spans[0]["end_lng"], "4")
 
+
+    def test_process_spans_gps_coord_are_none(self):
+        """
+        Sometimes the GPS coordinates are None
+        Span              x----x
+        Data     x----------------------x
+        """
+
+        current_device_spans = {
+            "deviceId": "123",
+            "spans": [
+                {  # this span is completely inside the data
+                    "spanId": "1",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                    "start_lat": "1",
+                    "start_lng": "2",
+                    "end_lat": "3",
+                    "end_lng": "4",
+                },
+                {
+                    "spanId": "2",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T12:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T12:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                },
+            ],
+        }
+
+        array_start_time = "2019-05-22T10:30:08.154000Z"
+        dt_array_start_time = datetime.datetime.strptime(
+            array_start_time, DATETIME_FORMAT
+        )
+
+        array_end_time = "2019-05-22T10:54:15.154000Z"
+        dt_array_end_time = datetime.datetime.strptime(
+            array_end_time, DATETIME_FORMAT
+        )
+
+        all_spans, spanId_for_tagging, modified = process_spans(
+            current_device_spans["spans"],
+            (array_start_time, dt_array_start_time),
+            (array_end_time, dt_array_end_time),
+            None,
+            None,
+            None,
+            None,
+        )
+        # print(all_spans, spanId_for_tagging, modified)
+
+        self.assertEqual(modified, True)
+        self.assertEqual(
+            spanId_for_tagging, current_device_spans["spans"][0]["spanId"]
+        )
+        self.assertEqual(all_spans[0]["start_time"], array_start_time)
+        self.assertEqual(all_spans[0]["end_time"], array_end_time)
+
+        # compare the start and end lat
+        self.assertEqual(all_spans[0]["start_lat"], "1")
+        self.assertEqual(all_spans[0]["start_lng"], "2")
+        self.assertEqual(all_spans[0]["end_lat"], "3")
+        self.assertEqual(all_spans[0]["end_lng"], "4")
+
     def test_process_spans_bigger(self):
         """
         Span              x----x
