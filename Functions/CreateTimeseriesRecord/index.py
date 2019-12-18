@@ -7,7 +7,7 @@ import boto3
 import botocore.session
 import ciso8601
 import datetime
-import dynamo_helper
+# import dynamo_helper
 import itertools
 import json
 import logging
@@ -129,49 +129,49 @@ def get_spans_for_devices_from_DAX_batch_usingODM(device_ids):
     return response
 
 
-def get_spans_for_devices_from_DAX_batch(device_ids):
-    """
-    Gets the spans for list of deviceIds from DynamoDB DAX
-    """
-    logger.info("Getting spans for deviceIds from DAX")
+# def get_spans_for_devices_from_DAX_batch(device_ids):
+    # """
+    # Gets the spans for list of deviceIds from DynamoDB DAX
+    # """
+    # logger.info("Getting spans for deviceIds from DAX")
 
-    all_low_level_data = []
+    # all_low_level_data = []
 
-    serialized_device_ids = [
-        dynamo_helper.serialize_to_ddb(x, serializer) for x in device_ids
-    ]
+    # serialized_device_ids = [
+        # dynamo_helper.serialize_to_ddb(x, serializer) for x in device_ids
+    # ]
 
-    chunks = _grouper(serialized_device_ids, 50)
+    # chunks = _grouper(serialized_device_ids, 50)
 
-    for c in chunks:
-        response = dynamo_client.batch_get_item(
-            RequestItems={env_vars["SpanDynamoDBTableName"]: {"Keys": c}}
-        )
-        low_level_data = response["Responses"][
-            env_vars["SpanDynamoDBTableName"]
-        ]
+    # for c in chunks:
+        # response = dynamo_client.batch_get_item(
+            # RequestItems={env_vars["SpanDynamoDBTableName"]: {"Keys": c}}
+        # )
+        # low_level_data = response["Responses"][
+            # env_vars["SpanDynamoDBTableName"]
+        # ]
 
-        logger.info(
-            "low level response from batch get spans : {}".format(
-                low_level_data
-            )
-        )
-        all_low_level_data.extend(low_level_data)
+        # logger.info(
+            # "low level response from batch get spans : {}".format(
+                # low_level_data
+            # )
+        # )
+        # all_low_level_data.extend(low_level_data)
 
-    all_spans_device_info = [
-        dynamo_helper.deserializer_from_ddb(x, deserializer)
-        for x in all_low_level_data
-    ]
+    # all_spans_device_info = [
+        # dynamo_helper.deserializer_from_ddb(x, deserializer)
+        # for x in all_low_level_data
+    # ]
 
-    for x in all_spans_device_info:
-        x["spans"] = json.loads(x["spans"])
-        x["spans"] = format_spans(x["spans"])
-        x["spans"] = sort_data_by_date(x["spans"], "end_time")
+    # for x in all_spans_device_info:
+        # x["spans"] = json.loads(x["spans"])
+        # x["spans"] = format_spans(x["spans"])
+        # x["spans"] = sort_data_by_date(x["spans"], "end_time")
 
-    logger.debug("ALL span data : {}".format(pformat(all_spans_device_info)))
-    logger.info("Getting spans for deviceIds from DAX...Done")
+    # logger.debug("ALL span data : {}".format(pformat(all_spans_device_info)))
+    # logger.info("Getting spans for deviceIds from DAX...Done")
 
-    return all_spans_device_info
+    # return all_spans_device_info
 
 
 def format_spans(
@@ -463,13 +463,35 @@ def update_span(spans, span_index, timestamps):
     return spans
 
 
-def process_spans(all_spans, array_start_time, array_end_time):
+def update_span_gps(spans, span_index,  attrs_to_update, start_lat, start_lng, end_lat, end_lng):
+    if span_index is not None:
+        for time in attrs_to_update:
+            # if start time is changed - update start gps too
+            if time[0] == "start_time":
+                logger.info("Updating the start lat/lng ({},{}) for spanid : {}".format(start_lat, start_lng, spans[span_index]['spanId']))
+                spans[span_index]['start_lat'] = start_lat
+                spans[span_index]['start_lng'] = start_lng
+            # if end time is changed - update end gps too
+            elif time[0] == "end_time":
+                spans[span_index]['end_lat'] = end_lat
+                spans[span_index]['end_lng'] = end_lng
+
+    return spans
+
+
+def process_spans(all_spans, array_start_time, array_end_time, start_lat, start_lng, end_lat, end_lng):
     logger.info("Process function start time : {}".format(array_start_time))
     logger.info("Process function end time : {}".format(array_end_time))
     # logger.info("all spans provided are : {}".format(all_spans))
 
     if len(all_spans) == 0:
         newly_created_span = create_span(array_start_time[0], array_end_time[0])
+        # create the start and end gps
+        newly_created_span['start_lat'] =  start_lat
+        newly_created_span['start_lng'] = start_lng
+        newly_created_span['end_lat'] =  end_lat
+        newly_created_span['end_lng'] = end_lng
+
         all_spans.append(newly_created_span)
         logger.warning(
             "Creating span for first time ever: {}".format(all_spans)
@@ -490,6 +512,12 @@ def process_spans(all_spans, array_start_time, array_end_time):
             newly_created_span = create_span(
                 array_start_time[0], array_end_time[0]
             )
+            # create the start and end gps
+            newly_created_span['start_lat'] =  start_lat
+            newly_created_span['start_lng'] = start_lng
+            newly_created_span['end_lat'] =  end_lat
+            newly_created_span['end_lng'] = end_lng
+
             all_spans.append(newly_created_span)
             return all_spans, newly_created_span["spanId"], True
 
@@ -501,7 +529,10 @@ def process_spans(all_spans, array_start_time, array_end_time):
 
         elif (span_index is not None) and attrs_to_update != []:
             logger.info("Found a span. Updating {}".format(attrs_to_update))
+            print(attrs_to_update)
             update_span(all_spans, span_index, attrs_to_update)
+            update_span_gps(all_spans, span_index, attrs_to_update,  start_lat, start_lng, end_lat, end_lng)
+
             return all_spans, span_id, True
 
         # # If a span has been found, an index will be returned
@@ -607,10 +638,10 @@ def tag_data(rec, spanId):
     return r
 
 
-def convert_to_putItem_format(item):
-    return {
-        "PutRequest": {"Item": dynamo_helper.serialize_to_ddb(item, serializer)}
-    }
+# def convert_to_putItem_format(item):
+    # return {
+        # "PutRequest": {"Item": dynamo_helper.serialize_to_ddb(item, serializer)}
+    # }
 
 
 def update_modified_device_spans_in_dynamo(device_spans_dict):
@@ -1103,6 +1134,14 @@ def handler(event, context):
         #################
         # Find the span #
         #################
+        # extract valid records only
+        valid_records_for_gps = [x for x in rec if x['gps']['status'] != "invalid"]
+        start_lat = valid_records_for_gps[0]["gps"]['lat']
+        start_lng = valid_records_for_gps[0]["gps"]['lng']
+
+        end_lat = valid_records_for_gps[-1]["gps"]['lat']
+        end_lng = valid_records_for_gps[-1]["gps"]['lng']
+
         array_end_time = rec[-1]["timeStamp"]
         array_start_time = rec[0]["timeStamp"]
         dt_array_end_time = rec[-1]["timeStamp"]
@@ -1121,6 +1160,10 @@ def handler(event, context):
             current_rec_device_id_spans,
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
+            start_lat,
+            start_lng,
+            end_lat,
+            end_lng
         )
 
         ############################################################
