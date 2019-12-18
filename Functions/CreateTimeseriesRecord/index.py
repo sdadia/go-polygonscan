@@ -1196,7 +1196,7 @@ def handler(event, context):
         ##############################################
         for r in rec:
             r["spanId"] = spanId_for_tagging
-            r["timeStamp"] = str(r["timeStamp"])
+            r["timestamp"] = str(r["timeStamp"])
             del r["timeStamp"]
             tagged_data.append(r)
 
