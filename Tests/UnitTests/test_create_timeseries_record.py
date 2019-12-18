@@ -7,6 +7,7 @@ import os
 import sys
 import unittest
 from pprint import pformat, pprint
+from unittest import mock
 
 os.environ["localhost"] = "1"
 os.environ["OutputKinesisStreamName"] = "pvcam-ProcessedTelematicsStream-test"
@@ -47,7 +48,6 @@ logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 import os
-import mock
 import time
 from pvapps_odm.ddbcon import dynamo_dbcon
 from pynamodb.connection import Connection
@@ -634,12 +634,22 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             current_device_spans,
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
+            "start_lat",
+            "start_lng",
+            "end_lat",
+            "end_lng",
         )
         # print(all_spans, spanId_for_tagging, modified)
 
         self.assertEqual(modified, True)
         self.assertEqual(all_spans[0]["start_time"], array_start_time)
         self.assertEqual(all_spans[0]["end_time"], array_end_time)
+
+        # compare the start and end lat
+        self.assertEqual(all_spans[0]["start_lat"], "start_lat")
+        self.assertEqual(all_spans[0]["start_lng"], "start_lng")
+        self.assertEqual(all_spans[0]["end_lat"], "end_lat")
+        self.assertEqual(all_spans[0]["end_lng"], "end_lng")
 
     def test_process_spans_inside(self):
         """
@@ -660,6 +670,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                     "end_time": datetime.datetime.strptime(
                         "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
                     ),
+                    "start_lat": "1",
+                    "start_lng": "2",
+                    "end_lat": "3",
+                    "end_lng": "4",
                 },
                 {
                     "spanId": "2",
@@ -687,6 +701,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             current_device_spans["spans"],
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
+            "start_lat",
+            "start_lng",
+            "end_lat",
+            "end_lng",
         )
         # print(all_spans, spanId_for_tagging, modified)
 
@@ -703,6 +721,11 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             current_device_spans["spans"][0]["end_time"],
         )
 
+        self.assertEqual(all_spans[0]["start_lat"], "1")
+        self.assertEqual(all_spans[0]["start_lng"], "2")
+        self.assertEqual(all_spans[0]["end_lat"], "3")
+        self.assertEqual(all_spans[0]["end_lng"], "4")
+
     def test_process_spans_right_ovelap(self):
         """
         Span     x----------------------x
@@ -714,15 +737,6 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             "deviceId": "123",
             "spans": [
                 {
-                    "spanId": "1",
-                    "start_time": datetime.datetime.strptime(
-                        "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
-                    ),
-                    "end_time": datetime.datetime.strptime(
-                        "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
-                    ),
-                },
-                {
                     "spanId": "2",
                     "start_time": datetime.datetime.strptime(
                         "2019-05-22T12:45:05.154000Z", DATETIME_FORMAT
@@ -730,6 +744,19 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                     "end_time": datetime.datetime.strptime(
                         "2019-05-22T12:50:15.154000Z", DATETIME_FORMAT
                     ),
+                },
+                {  # overlaps with this span
+                    "spanId": "1",
+                    "start_time": datetime.datetime.strptime(
+                        "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
+                    ),
+                    "end_time": datetime.datetime.strptime(
+                        "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
+                    ),
+                    "start_lat": "1",
+                    "start_lng": "2",
+                    "end_lat": "3",
+                    "end_lng": "4",
                 },
             ],
         }
@@ -748,14 +775,22 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             current_device_spans["spans"],
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
+            "start_lat",
+            "start_lng",
+            "end_lat",
+            "end_lng",
         )
-        # print(all_spans, spanId_for_tagging, modified)
 
         self.assertEqual(modified, True)
         self.assertEqual(
-            spanId_for_tagging, current_device_spans["spans"][0]["spanId"]
+            spanId_for_tagging, current_device_spans["spans"][-1]["spanId"]
         )
-        self.assertEqual(all_spans[0]["end_time"], array_end_time)
+        self.assertEqual(all_spans[-1]["end_time"], array_end_time)
+
+        self.assertEqual(all_spans[-1]["start_lat"], "1")
+        self.assertEqual(all_spans[-1]["start_lng"], "2")
+        self.assertEqual(all_spans[-1]["end_lat"], "end_lat")
+        self.assertEqual(all_spans[-1]["end_lng"], "end_lng")
 
     @mock.patch("Functions.CreateTimeseriesRecord.index.generate_uuid")
     def test_process_spans_right_new_span(self, mock_generate_uuid):
@@ -785,6 +820,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                     "end_time": datetime.datetime.strptime(
                         "2019-05-22T12:50:15.154000Z", DATETIME_FORMAT
                     ),
+                    "start_lat": "1",
+                    "start_lng": "2",
+                    "end_lat": "3",
+                    "end_lng": "4",
                 },
             ],
         }
@@ -803,6 +842,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             current_device_spans["spans"],
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
+            "start_lat",
+            "start_lng",
+            "end_lat",
+            "end_lng",
         )
         # print("{} {} {}".format(all_spans, spanId_for_tagging, modified))
 
@@ -811,6 +854,11 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         self.assertEqual(spanId_for_tagging, mock_generate_uuid.return_value)
         self.assertEqual(all_spans[-1]["end_time"], array_end_time)
         self.assertEqual(all_spans[-1]["start_time"], array_start_time)
+
+        self.assertEqual(all_spans[-1]["start_lat"], "start_lat")
+        self.assertEqual(all_spans[-1]["start_lng"], "start_lng")
+        self.assertEqual(all_spans[-1]["end_lat"], "end_lat")
+        self.assertEqual(all_spans[-1]["end_lng"], "end_lng")
 
     @mock.patch("Functions.CreateTimeseriesRecord.index.generate_uuid")
     def test_process_spans_left_new_span(self, mock_generate_uuid):
@@ -831,6 +879,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                     "end_time": datetime.datetime.strptime(
                         "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
                     ),
+                    "start_lat": "1",
+                    "start_lng": "2",
+                    "end_lat": "3",
+                    "end_lng": "4",
                 },
                 {
                     "spanId": "2",
@@ -858,6 +910,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             current_device_spans["spans"],
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
+            "start_lat",
+            "start_lng",
+            "end_lat",
+            "end_lng",
         )
         # print("{} {} {}".format(all_spans, spanId_for_tagging, modified))
 
@@ -866,6 +922,11 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         self.assertEqual(spanId_for_tagging, mock_generate_uuid.return_value)
         self.assertEqual(all_spans[-1]["end_time"], array_end_time)
         self.assertEqual(all_spans[-1]["start_time"], array_start_time)
+
+        self.assertEqual(all_spans[-1]["start_lat"], "start_lat")
+        self.assertEqual(all_spans[-1]["start_lng"], "start_lng")
+        self.assertEqual(all_spans[-1]["end_lat"], "end_lat")
+        self.assertEqual(all_spans[-1]["end_lng"], "end_lng")
 
     # @unittest.SkipTest
     def test_process_spans_left_ovelap(self):
@@ -884,6 +945,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                     "end_time": datetime.datetime.strptime(
                         "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
                     ),
+                    "start_lat": "1",
+                    "start_lng": "2",
+                    "end_lat": "3",
+                    "end_lng": "4",
                 },
                 {
                     "spanId": "2",
@@ -911,6 +976,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             current_device_spans["spans"],
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
+            "start_lat",
+            "start_lng",
+            "end_lat",
+            "end_lng",
         )
         print(all_spans, spanId_for_tagging, modified)
 
@@ -918,16 +987,21 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         self.assertEqual(spanId_for_tagging, "1")
         self.assertEqual(all_spans[0]["start_time"], array_start_time)
 
+        self.assertEqual(all_spans[0]["start_lat"], "start_lat")
+        self.assertEqual(all_spans[0]["start_lng"], "start_lng")
+        self.assertEqual(all_spans[0]["end_lat"], "3")
+        self.assertEqual(all_spans[0]["end_lng"], "4")
+
     def test_process_spans_bigger(self):
         """
-        Data              x----x
-        Span     x----------------------x
+        Span              x----x
+        Data     x----------------------x
         """
 
         current_device_spans = {
             "deviceId": "123",
             "spans": [
-                {
+                {  # this span is completely inside the data
                     "spanId": "1",
                     "start_time": datetime.datetime.strptime(
                         "2019-05-22T10:45:05.154000Z", DATETIME_FORMAT
@@ -935,6 +1009,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                     "end_time": datetime.datetime.strptime(
                         "2019-05-22T10:50:15.154000Z", DATETIME_FORMAT
                     ),
+                    "start_lat": "1",
+                    "start_lng": "2",
+                    "end_lat": "3",
+                    "end_lng": "4",
                 },
                 {
                     "spanId": "2",
@@ -962,6 +1040,10 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             current_device_spans["spans"],
             (array_start_time, dt_array_start_time),
             (array_end_time, dt_array_end_time),
+            "start_lat",
+            "start_lng",
+            "end_lat",
+            "end_lng",
         )
         # print(all_spans, spanId_for_tagging, modified)
 
@@ -971,6 +1053,12 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         )
         self.assertEqual(all_spans[0]["start_time"], array_start_time)
         self.assertEqual(all_spans[0]["end_time"], array_end_time)
+
+        # compare the start and end lat
+        self.assertEqual(all_spans[0]["start_lat"], "start_lat")
+        self.assertEqual(all_spans[0]["start_lng"], "start_lng")
+        self.assertEqual(all_spans[0]["end_lat"], "end_lat")
+        self.assertEqual(all_spans[0]["end_lng"], "end_lng")
 
     # @unittest.SkipTest
     @mock.patch(
