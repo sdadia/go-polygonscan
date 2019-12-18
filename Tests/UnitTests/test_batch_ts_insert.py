@@ -60,9 +60,7 @@ class TestBatchTSInsert(unittest.TestCase):
 
         extracted_data = extract_data_from_kinesis(event)
 
-        logger.debug(
-            "Extracted event is : \n{}".format(pformat(extracted_data))
-        )
+        logger.info("Extracted event is : \n{}".format(pformat(extracted_data)))
 
         expected_extracted_data = [
             {
@@ -121,7 +119,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "gpsTime": "2019-10-18T13:59:59.000Z",
+                "GPSTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
@@ -134,7 +132,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "111",
-                "gpsTime": "2019-10-18T13:59:59.000Z",
+                "GPSTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
@@ -154,7 +152,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "gpsTime": "2019-10-18T13:59:59.000Z",
+                "GPSTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
@@ -167,7 +165,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "gpsTime": "2019-10-18T13:59:59.000Z",
+                "GPSTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
@@ -189,10 +187,12 @@ class TestBatchTSInsert(unittest.TestCase):
                     data[0]["timestamp"]
                 ).timestamp(),
                 "speed": str(data[0]["speed"]),
+                "io": str(data[0]["io"]),
+                "acc": str(data[0]["acc"]),
                 "gps_coords": {
                     "lat": str(data[0]["lat"]),
                     "lng": str(data[0]["lng"]),
-                    "gps_timestamp": str(data[0]["timestamp"]),
+                    "gps_timestamp": str(data[0]["GPSTime"]),
                     "gps_valid": str(data[0]["status"]),
                     "course": str(data[0]["course"]),
                 },
@@ -205,14 +205,15 @@ class TestBatchTSInsert(unittest.TestCase):
         for m1, m2 in zip(non_duplicate_models, expected_non_duplicate_models):
             self.assertEqual(hash(m1), hash(m2))
 
-
-    def test_put_data_into_TS_dynamo_modelC_duplicate_data_only_span_ts_are_same(self):
+    def test_put_data_into_TS_dynamo_modelC_duplicate_data_only_span_ts_are_same(
+        self,
+    ):
         data = [
             {
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "gpsTime": "2019-10-18T13:59:59.000Z",
+                "GPSTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
@@ -225,10 +226,10 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "gpsTime": "2019-10-18T13:59:59.000Z",
+                "GPSTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
-                "lat": "531.84N", # gps diff
-                "lng": "62.338W", # gps diiff
+                "lat": "531.84N",  # gps diff
+                "lng": "62.338W",  # gps diiff
                 "spanId": "f565bfdd-38e4-4533-b6a4-32112044c3b7",
                 "speed": "1.31492",
                 "status": "valid",
@@ -247,10 +248,12 @@ class TestBatchTSInsert(unittest.TestCase):
                     data[0]["timestamp"]
                 ).timestamp(),
                 "speed": str(data[0]["speed"]),
+                "io": str(data[0]["io"]),
+                "acc": str(data[0]["acc"]),
                 "gps_coords": {
                     "lat": str(data[0]["lat"]),
                     "lng": str(data[0]["lng"]),
-                    "gps_timestamp": str(data[0]["timestamp"]),
+                    "gps_timestamp": str(data[0]["GPSTime"]),
                     "gps_valid": str(data[0]["status"]),
                     "course": str(data[0]["course"]),
                 },
@@ -262,7 +265,6 @@ class TestBatchTSInsert(unittest.TestCase):
 
         for m1, m2 in zip(non_duplicate_models, expected_non_duplicate_models):
             self.assertEqual(hash(m1), hash(m2))
-
 
     def test_handler(self):
         with open("sample_ts_insert_input.json") as f:
