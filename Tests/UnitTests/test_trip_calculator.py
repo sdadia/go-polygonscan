@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 import logging
 import os
 import sys
