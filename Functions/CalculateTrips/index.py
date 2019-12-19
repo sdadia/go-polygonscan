@@ -25,7 +25,7 @@ from pvapps_odm.Schema.models import (
 from pvapps_odm.ddbcon import dynamo_dbcon
 from pvapps_odm.ddbcon import Connection
 
-from typing import Dict
+from typing import Dict, List
 
 
 root = logging.getLogger()
@@ -65,14 +65,14 @@ ddb_stationary_idling.connect()
 
 # enable dax
 if "DAXUrl" in env_vars:
-    logging.warn("Using DAX")
+    logging.warning("Using DAX")
     session = botocore.session.get_session()
     dax = amazondax.AmazonDaxClient(
         session, region_name="us-east-1", endpoints=[env_vars["DAXUrl"]]
     )
     dynamo_dax_client = dax
 else:
-    logging.warn("Not using DAX")
+    logging.warning("Not using DAX")
     dynamo_dax_client = boto3.client("dynamodb")
 
 
@@ -97,10 +97,10 @@ DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def get_trips_pandas(
-    sorted_list_of_dicts,
-    user_start_time,
-    user_end_time,
-    time_diff_between_spans,
+    sorted_list_of_dicts: List[Dict],
+    user_start_time: str,
+    user_end_time: str,
+    time_diff_between_spans: int,
 ):
     """
     Finds the relevant trips from the sorted list of spans. This function internally sorts the data
@@ -130,13 +130,13 @@ def get_trips_pandas(
     The span ids will be a list of strings of the ids
 
     {
-    "trip_num" : {"start_time" : ..,
-    "end_time" : ...,
-    "spanIds" = [....]},
+        "trip_num" : {"start_time" : ..,
+        "end_time" : ...,
+        "spanIds" = [....]},
 
-    "trip_num" : {"start_time" : ..,
-    "end_time" : ...,
-    "spanIds" = [....]},
+        "trip_num" : {"start_time" : ..,
+        "end_time" : ...,
+        "spanIds" = [....]},
     }
     """
     logging.info("Finding trips")
@@ -145,10 +145,72 @@ def get_trips_pandas(
             time_diff_between_spans
         )
     )
+    assert isinstance(user_start_time, str)
+    assert isinstance(user_end_time, str)
+    user_end_time = ciso8601.parse_datetime(user_end_time)
+    user_start_time = ciso8601.parse_datetime(user_start_time)
 
     # convert to data frame, set type as date time and sort in ascending order by timestamp
     if not isinstance(sorted_list_of_dicts, list):
         sorted_list_of_dicts = [sorted_list_of_dicts]
+    pprint(sorted_list_of_dicts)
+
+    # keep the data only between user specified start and end_time
+    span_id_to_delete = []
+    for idx, span in enumerate(sorted_list_of_dicts):
+        if not isinstance(span["start_time"], datetime.datetime):
+            span_start_time = ciso8601.parse_datetime(span["start_time"])
+        else:
+            span_start_time = span["start_time"]
+
+        if not isinstance(span["end_time"], datetime.datetime):
+            span_end_time = ciso8601.parse_datetime(span["end_time"])
+        else:
+            span_end_time = span["end_time"]
+
+        query_start_time = user_start_time
+        query_end_time = user_end_time
+
+        # case 1: query bigger
+        # span      x-------------x
+        # query y--------------------y
+        # keep this span
+        if (query_start_time < span_start_time) and (query_end_time) > (
+            span_end_time
+        ):
+            continue
+        # case 2: left overlap
+        # span       x----------------x
+        # query   y----------y
+        # keep this span
+        elif (query_start_time < span_start_time) and (
+            query_end_time > span_start_time
+        ):
+            continue
+        # case 3: right overlap
+        # span       x----------------x
+        # query                 y----------y
+        # keep this span
+        elif (query_start_time < span_end_time) and (
+            query_end_time > span_end_time
+        ):
+            continue
+        # case 4: query inside
+        # span       x----------------x
+        # query           y----y
+        # keep this span
+        elif (query_start_time > span_start_time) and (
+            query_end_time < span_end_time
+        ):
+            continue
+        else:
+            span_id_to_delete.append(idx)
+
+    # delete spans at those index
+    span_id_to_delete.sort(reverse=True)
+    for t in span_id_to_delete:
+        del sorted_list_of_dicts[t]
+    # pprint(sorted_list_of_dicts)
 
     df = pd.DataFrame(sorted_list_of_dicts)
     df = df[df.start_time != df.end_time]
@@ -156,14 +218,12 @@ def get_trips_pandas(
     df[["start_time_", "end_time_"]] = df[["start_time", "end_time"]].apply(
         pd.to_datetime
     )
-    user_end_time = pd.to_datetime(user_end_time).tz_localize("UTC")
-    user_start_time = pd.to_datetime(user_start_time).tz_localize("UTC")
 
-    # keep the data only between user specified start and end_time
-    df = df[
-        (df["start_time_"] >= user_start_time)
-        & (df["end_time_"] <= user_end_time)
-    ]
+    # if latitude, longitude does not exist for a span, keep it as nan
+    for col in ["start_lat", "start_lng", "end_lat", "end_lng"]:
+        if col not in df.columns:
+            df[col] = None
+
     # print(df)
 
     df.sort_values(by="start_time_", ascending=True, inplace=True)
@@ -201,8 +261,8 @@ def get_trips_pandas(
 
     df["start_time_"] = df["start_time_"].astype(str)
     df["end_time_"] = df["end_time_"].astype(str)
-    logging.debug("Calculated Data frame is : \n{}".format(df))
-    # print(df.to_csv("mango.csv"))
+    logging.info("Calculated Data frame is : \n{}".format(df))
+    df.replace({pd.np.nan: ""}, inplace=True)  # replace nan with ""
 
     # extract the min and max time for each trip
     final_result_set = (
@@ -224,52 +284,11 @@ def get_trips_pandas(
     )
 
     for t in final_result_set:
-
-        for x in ['start_lng', "start_lat"]:
-
-            try:
-                print(final_result_set[t][x])
-                if final_result_set[t][x][0] is np.nan:
-                    final_result_set[t][x] = ""
-                else:
-                    final_result_set[t][x] = final_result_set[t][x][0]
-            except:
-
-
-        # try:
-            # final_result_set[t]["start_lat"] = final_result_set[t]["start_lat"][
-                # 0
-            # ]
-            # final_result_set[t]["start_lng"] = final_result_set[t]["start_lng"][
-                # 0
-            # ]
-            # final_result_set[t]["end_lat"] = final_result_set[t]["end_lat"][0]
-            # final_result_set[t]["end_lng"] = final_result_set[t]["end_lng"][0]
-        # except:
-                logger.error("got exception")
-
-        for x in ['end_lng', "end_lat"]:
-
-            try:
-                print(final_result_set[t][x])
-                if final_result_set[t][x][0] is np.nan:
-                    final_result_set[t][x] = ""
-                else:
-                    final_result_set[t][x] = final_result_set[t][x][-1]
-            except:
-
-
-        # try:
-            # final_result_set[t]["start_lat"] = final_result_set[t]["start_lat"][
-                # 0
-            # ]
-            # final_result_set[t]["start_lng"] = final_result_set[t]["start_lng"][
-                # 0
-            # ]
-            # final_result_set[t]["end_lat"] = final_result_set[t]["end_lat"][0]
-            # final_result_set[t]["end_lng"] = final_result_set[t]["end_lng"][0]
-        # except:
-                logger.error("got exception")
+        for x in ["start_lng", "start_lat"]:
+            final_result_set[t][x] = final_result_set[t][x][0]
+        for x in ["end_lng", "end_lat"]:
+            final_result_set[t][x] = final_result_set[t][x][-1]
+    # pprint(final_result_set)
 
     logging.info("Finding trips...Done")
     return final_result_set
@@ -641,7 +660,7 @@ def handler(event, context):
 
     # if trip merging time is not specified, then set to default value
     if "trip_time_diff" not in event:
-        logging.warn(
+        logging.warning(
             "User did not specify, using default timing for trip time diff : {}".format(
                 TRIP_TIME_DIFF
             )
