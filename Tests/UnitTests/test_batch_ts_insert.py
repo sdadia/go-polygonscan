@@ -54,7 +54,7 @@ class TestBatchTSInsert(unittest.TestCase):
             TSModelC.delete_table()
 
     def test_extract_data_from_kinesis(self):
-        with open("sample_ts_insert_input.json") as f:
+        with open("sample_ts_insert_input2.json") as f:
             event = json.load(f)
         logger.debug("Event is : \n{}".format(pformat(event)))
 
@@ -64,7 +64,7 @@ class TestBatchTSInsert(unittest.TestCase):
 
         expected_extracted_data = [
             {
-                "GPSTime": "2019-05-22T10:45:05Z",
+                "gpsTime": "2019-05-22T10:45:05Z",
                 "acc": "0",
                 "alt": "41.00",
                 "course": "63.60",
@@ -79,7 +79,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "timestamp": "2019-05-22 10:45:05.154000",
             },
             {
-                "GPSTime": "2019-05-22T10:45:06Z",
+                "gpsTime": "2019-05-22T10:45:06Z",
                 "acc": "0",
                 "alt": "41.00",
                 "course": "148.87",
@@ -94,7 +94,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "timestamp": "2019-05-22 10:45:06.154000",
             },
             {
-                "GPSTime": "2019-05-22T10:45:07Z",
+                "gpsTime": "2019-05-22T10:45:07Z",
                 "acc": "0",
                 "alt": "41.00",
                 "course": "137.71",
@@ -119,7 +119,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "GPSTime": "2019-10-18T13:59:59.000Z",
+                "gpsTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
@@ -132,7 +132,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "111",
-                "GPSTime": "2019-10-18T13:59:59.000Z",
+                "gpsTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
@@ -152,7 +152,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "GPSTime": "2019-10-18T13:59:59.000Z",
+                "gpsTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
@@ -165,7 +165,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "GPSTime": "2019-10-18T13:59:59.000Z",
+                "gpsTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
@@ -192,7 +192,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "gps_coords": {
                     "lat": str(data[0]["lat"]),
                     "lng": str(data[0]["lng"]),
-                    "gps_timestamp": str(data[0]["GPSTime"]),
+                    "gps_timestamp": str(data[0]["gpsTime"]),
                     "gps_valid": str(data[0]["status"]),
                     "course": str(data[0]["course"]),
                 },
@@ -213,7 +213,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "GPSTime": "2019-10-18T13:59:59.000Z",
+                "gpsTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "5319.84N",
                 "lng": "622.338W",
@@ -226,7 +226,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "acc": "1",
                 "course": "331.47",
                 "deviceId": "112",
-                "GPSTime": "2019-10-18T13:59:59.000Z",
+                "gpsTime": "2019-10-18T13:59:59.000Z",
                 "io": "11111111",
                 "lat": "531.84N",  # gps diff
                 "lng": "62.338W",  # gps diiff
@@ -253,7 +253,7 @@ class TestBatchTSInsert(unittest.TestCase):
                 "gps_coords": {
                     "lat": str(data[0]["lat"]),
                     "lng": str(data[0]["lng"]),
-                    "gps_timestamp": str(data[0]["GPSTime"]),
+                    "gps_timestamp": str(data[0]["gpsTime"]),
                     "gps_valid": str(data[0]["status"]),
                     "course": str(data[0]["course"]),
                 },

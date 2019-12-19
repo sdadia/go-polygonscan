@@ -202,18 +202,74 @@ def get_trips_pandas(
     df["start_time_"] = df["start_time_"].astype(str)
     df["end_time_"] = df["end_time_"].astype(str)
     logging.debug("Calculated Data frame is : \n{}".format(df))
+    # print(df.to_csv("mango.csv"))
 
     # extract the min and max time for each trip
     final_result_set = (
         (
             df.groupby("trip_id_indicator").agg(
-                {"start_time_": min, "end_time_": max, "spanId": list}
+                {
+                    "start_time_": min,
+                    "end_time_": max,
+                    "spanId": list,
+                    "start_lat": list,
+                    "end_lat": list,
+                    "start_lng": list,
+                    "end_lng": list,
+                }
             )
         )
         .rename(columns={"end_time_": "end_time", "start_time_": "start_time"})
         .to_dict(orient="index")
     )
-    # pprint(final_result_set)
+
+    for t in final_result_set:
+
+        for x in ['start_lng', "start_lat"]:
+
+            try:
+                print(final_result_set[t][x])
+                if final_result_set[t][x][0] is np.nan:
+                    final_result_set[t][x] = ""
+                else:
+                    final_result_set[t][x] = final_result_set[t][x][0]
+            except:
+
+
+        # try:
+            # final_result_set[t]["start_lat"] = final_result_set[t]["start_lat"][
+                # 0
+            # ]
+            # final_result_set[t]["start_lng"] = final_result_set[t]["start_lng"][
+                # 0
+            # ]
+            # final_result_set[t]["end_lat"] = final_result_set[t]["end_lat"][0]
+            # final_result_set[t]["end_lng"] = final_result_set[t]["end_lng"][0]
+        # except:
+                logger.error("got exception")
+
+        for x in ['end_lng', "end_lat"]:
+
+            try:
+                print(final_result_set[t][x])
+                if final_result_set[t][x][0] is np.nan:
+                    final_result_set[t][x] = ""
+                else:
+                    final_result_set[t][x] = final_result_set[t][x][-1]
+            except:
+
+
+        # try:
+            # final_result_set[t]["start_lat"] = final_result_set[t]["start_lat"][
+                # 0
+            # ]
+            # final_result_set[t]["start_lng"] = final_result_set[t]["start_lng"][
+                # 0
+            # ]
+            # final_result_set[t]["end_lat"] = final_result_set[t]["end_lat"][0]
+            # final_result_set[t]["end_lng"] = final_result_set[t]["end_lng"][0]
+        # except:
+                logger.error("got exception")
 
     logging.info("Finding trips...Done")
     return final_result_set
@@ -412,9 +468,10 @@ def aggregate_stationary_idling_time(
     """
     logger.debug("Function parameters are : \n{}".format(pformat(locals())))
 
-    idling_state_transition, stationary_state_transition = get_stationary_idling_state_transitions(
-        deviceId
-    )
+    (
+        idling_state_transition,
+        stationary_state_transition,
+    ) = get_stationary_idling_state_transitions(deviceId)
 
     if stationary_state_transition["time"]:
         stationary_state_transition = keep_relevant_data_for_stationary_idling_btw_start_end_time(
@@ -425,7 +482,10 @@ def aggregate_stationary_idling_time(
 
             # print(stationary_state_transition)
             # find the total stationary time
-            total_stationary_time, post_correction_needed = find_actual_time_from_state_transitons(
+            (
+                total_stationary_time,
+                post_correction_needed,
+            ) = find_actual_time_from_state_transitons(
                 stationary_state_transition
             )
             if post_correction_needed:
@@ -451,9 +511,10 @@ def aggregate_stationary_idling_time(
         if idling_state_transition["time"]:
 
             # find total idling time
-            total_idling_time, post_correction_needed = find_actual_time_from_state_transitons(
-                idling_state_transition
-            )
+            (
+                total_idling_time,
+                post_correction_needed,
+            ) = find_actual_time_from_state_transitons(idling_state_transition)
 
             if post_correction_needed:
                 total_idling_time += (
@@ -477,7 +538,7 @@ def aggregate_stationary_idling_time(
 
 
 def get_spans_for_device_from_partiuclar_table(
-    date_device_dictionary_list: List
+    date_device_dictionary_list: List,
 ):
     """
     Expected input : [{'date': '24112019', 'deviceId': '1'},
@@ -504,8 +565,8 @@ def get_spans_for_device_from_partiuclar_table(
 
         SpanModel.Meta.table_name = env_vars["SpanDynamoDBTableName"] + date
         SpanModel._connection = (
-            None
-        )  # after changing model's table name - set it to none
+            None  # after changing model's table name - set it to none
+        )
         ddb = dynamo_dbcon(SpanModel, conn=Connection())
         ddb.connect()
 
@@ -616,6 +677,7 @@ def handler(event, context):
         if len(spans):
             span_data.extend(spans)
     logging.info("returned span data : {}".format(pformat(span_data)))
+    # print(span_data)
     # sys.exit(1)
     # # if no spans are returned, then the trips does not exist
     if len(span_data) == 0:
