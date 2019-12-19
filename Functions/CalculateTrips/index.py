@@ -225,7 +225,7 @@ def get_trips_pandas(
 
     for t in final_result_set:
 
-        for x in ['start_lng', "start_lat", "end_lat", "end_lng"]:
+        for x in ['start_lng', "start_lat"]:
 
             try:
                 print(final_result_set[t][x])
@@ -233,6 +233,29 @@ def get_trips_pandas(
                     final_result_set[t][x] = ""
                 else:
                     final_result_set[t][x] = final_result_set[t][x][0]
+            except:
+
+
+        # try:
+            # final_result_set[t]["start_lat"] = final_result_set[t]["start_lat"][
+                # 0
+            # ]
+            # final_result_set[t]["start_lng"] = final_result_set[t]["start_lng"][
+                # 0
+            # ]
+            # final_result_set[t]["end_lat"] = final_result_set[t]["end_lat"][0]
+            # final_result_set[t]["end_lng"] = final_result_set[t]["end_lng"][0]
+        # except:
+                logger.error("got exception")
+
+        for x in ['end_lng', "end_lat"]:
+
+            try:
+                print(final_result_set[t][x])
+                if final_result_set[t][x][0] is np.nan:
+                    final_result_set[t][x] = ""
+                else:
+                    final_result_set[t][x] = final_result_set[t][x][-1]
             except:
 
 
