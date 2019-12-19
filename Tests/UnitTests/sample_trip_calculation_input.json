@@ -1,6 +1,6 @@
 {
     "deviceId": "0551fd10-326a-4207-9c68-79e0bba85e0a",
-    "start_datetime": "2019-12-05 08:02:14",
-    "end_datetime": "2019-12-05 08:02:22",
+    "start_datetime": "2019-12-05 08:02:14Z",
+    "end_datetime": "2019-12-05 08:02:22Z",
     "trip_time_diff": 10,
 }

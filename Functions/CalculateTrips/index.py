@@ -153,7 +153,7 @@ def get_trips_pandas(
     # convert to data frame, set type as date time and sort in ascending order by timestamp
     if not isinstance(sorted_list_of_dicts, list):
         sorted_list_of_dicts = [sorted_list_of_dicts]
-    pprint(sorted_list_of_dicts)
+    # pprint(sorted_list_of_dicts)
 
     # keep the data only between user specified start and end_time
     span_id_to_delete = []
