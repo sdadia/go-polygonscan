@@ -84,7 +84,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             [
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:05Z",
                         "alt": "41.00",
@@ -100,7 +100,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:06Z",
                         "alt": "41.00",
@@ -153,7 +153,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
             [
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:05Z",
                         "alt": "41.00",
@@ -169,7 +169,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:06Z",
                         "alt": "41.00",
@@ -185,7 +185,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:07Z",
                         "alt": "41.00",
@@ -201,7 +201,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:08Z",
                         "alt": "41.10",
@@ -217,7 +217,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:09Z",
                         "alt": "41.10",
@@ -233,7 +233,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:10Z",
                         "alt": "41.10",
@@ -249,7 +249,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:11Z",
                         "alt": "41.10",
@@ -265,7 +265,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:12Z",
                         "alt": "41.10",
@@ -281,7 +281,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:13Z",
                         "alt": "41.10",
@@ -297,7 +297,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
                 },
                 {
                     "acc": "0",
-                    "deviceId": "9b59fd3e-17e0-11e9-ab14-d663bd873",
+                    "deviceId": "123",
                     "gps": {
                         "GPSTime": "2019-05-22T10:45:14Z",
                         "alt": "41.10",
@@ -462,11 +462,6 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         self.assertEqual(len(valid_data), 0)
         logging.info("Testing remove_invalid_trip_data...Done")
 
-    # @unittest.SkipTest
-    def test_handler2(self):
-        with open("sample_span_calculation_input.json") as f:
-            event = json.load(f)
-        handler(event, None)
 
     def test_get_unique_device_ids_from_records(self):
         logging.info("Testing get_unique_device_ids_from_records")
