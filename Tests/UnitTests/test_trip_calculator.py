@@ -282,9 +282,9 @@ class Test_trip_calculator_pandas(unittest.TestCase):
         # with open("sample_trip_calculation_input.json") as f:
         # event = json.load(f)
         event = {
-            "deviceId": "0551fd10-326a-4207-9c68-79e0bba85e0a",
-            "start_datetime": "2019-12-18 00:00:00Z",
-            "end_datetime": "2019-12-18 23:59:59Z",
+            "deviceId": "11adaffa-3b2e-4b4f-ba6b-a0b5ed38c551",
+            "start_datetime": "2019-12-19 00:00:00Z",
+            "end_datetime": "2019-12-19 23:59:59Z",
             "trip_time_diff": 10,
         }
         trips = handler(event, None)

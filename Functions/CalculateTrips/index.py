@@ -734,5 +734,5 @@ def handler(event, context):
 
     trips = {"trips": list(trips.values())}
 
-    logger.info("Calculated trips are : {}".format(trips))
+    logger.info("Calculated trips are : \n{}".format(pformat(trips)))
     return trips
