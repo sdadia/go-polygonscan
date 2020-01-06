@@ -7,6 +7,8 @@ import boto3
 import botocore.session
 import ciso8601
 import datetime
+from typing import List
+
 # import dynamo_helper
 import itertools
 import json
@@ -130,48 +132,48 @@ def get_spans_for_devices_from_DAX_batch_usingODM(device_ids):
 
 
 # def get_spans_for_devices_from_DAX_batch(device_ids):
-    # """
-    # Gets the spans for list of deviceIds from DynamoDB DAX
-    # """
-    # logger.info("Getting spans for deviceIds from DAX")
+# """
+# Gets the spans for list of deviceIds from DynamoDB DAX
+# """
+# logger.info("Getting spans for deviceIds from DAX")
 
-    # all_low_level_data = []
+# all_low_level_data = []
 
-    # serialized_device_ids = [
-        # dynamo_helper.serialize_to_ddb(x, serializer) for x in device_ids
-    # ]
+# serialized_device_ids = [
+# dynamo_helper.serialize_to_ddb(x, serializer) for x in device_ids
+# ]
 
-    # chunks = _grouper(serialized_device_ids, 50)
+# chunks = _grouper(serialized_device_ids, 50)
 
-    # for c in chunks:
-        # response = dynamo_client.batch_get_item(
-            # RequestItems={env_vars["SpanDynamoDBTableName"]: {"Keys": c}}
-        # )
-        # low_level_data = response["Responses"][
-            # env_vars["SpanDynamoDBTableName"]
-        # ]
+# for c in chunks:
+# response = dynamo_client.batch_get_item(
+# RequestItems={env_vars["SpanDynamoDBTableName"]: {"Keys": c}}
+# )
+# low_level_data = response["Responses"][
+# env_vars["SpanDynamoDBTableName"]
+# ]
 
-        # logger.info(
-            # "low level response from batch get spans : {}".format(
-                # low_level_data
-            # )
-        # )
-        # all_low_level_data.extend(low_level_data)
+# logger.info(
+# "low level response from batch get spans : {}".format(
+# low_level_data
+# )
+# )
+# all_low_level_data.extend(low_level_data)
 
-    # all_spans_device_info = [
-        # dynamo_helper.deserializer_from_ddb(x, deserializer)
-        # for x in all_low_level_data
-    # ]
+# all_spans_device_info = [
+# dynamo_helper.deserializer_from_ddb(x, deserializer)
+# for x in all_low_level_data
+# ]
 
-    # for x in all_spans_device_info:
-        # x["spans"] = json.loads(x["spans"])
-        # x["spans"] = format_spans(x["spans"])
-        # x["spans"] = sort_data_by_date(x["spans"], "end_time")
+# for x in all_spans_device_info:
+# x["spans"] = json.loads(x["spans"])
+# x["spans"] = format_spans(x["spans"])
+# x["spans"] = sort_data_by_date(x["spans"], "end_time")
 
-    # logger.debug("ALL span data : {}".format(pformat(all_spans_device_info)))
-    # logger.info("Getting spans for deviceIds from DAX...Done")
+# logger.debug("ALL span data : {}".format(pformat(all_spans_device_info)))
+# logger.info("Getting spans for deviceIds from DAX...Done")
 
-    # return all_spans_device_info
+# return all_spans_device_info
 
 
 def format_spans(
@@ -463,37 +465,118 @@ def update_span(spans, span_index, timestamps):
     return spans
 
 
-def update_span_gps(spans, span_index,  attrs_to_update, start_lat, start_lng, end_lat, end_lng):
+def update_span_gps(
+    spans, span_index, attrs_to_update, start_lat, start_lng, end_lat, end_lng
+):
     if span_index is not None:
         for time in attrs_to_update:
+            # first time update ever - then set the start and end lat long as same
+
+            if (
+                spans[span_index].get("start_lat", None) is None
+                and spans[span_index].get("end_lat", None) is None
+                and spans[span_index].get("start_lng", None) is None
+                and spans[span_index].get("end_lng", None) is None
+            ):
+                logger.warning(
+                    "Setting the start lat/lng and end lat/lng for the first time ever"
+                )
+
+                # set the start/end lat lng to which ever one is non zero
+                if (start_lat is not None) and (end_lat is None):
+                    logger.warning(
+                        "End lat is None, Setting it equal to start lat"
+                    )
+                    end_lat = start_lat
+                if (end_lat is not None) and (start_lat is None):
+                    logger.warning(
+                        "Start lat is None, Setting it equal to end lat"
+                    )
+                    start_lat = end_lat
+                if (start_lng is not None) and (end_lng is None):
+                    logger.warning(
+                        "End lng is None, Setting it equal to start lng"
+                    )
+                    end_lng = start_lng
+                if (end_lng is not None) and (start_lng is None):
+                    logger.warning(
+                        "Start lng is None, Setting it equal to end lng"
+                    )
+                    start_lng = end_lng
+
+                spans[span_index]["start_lat"] = start_lat
+                spans[span_index]["start_lng"] = start_lng
+                spans[span_index]["end_lat"] = end_lat
+                spans[span_index]["end_lng"] = end_lng
+
             # if start time is changed - update start gps too
-            if time[0] == "start_time":
-                logger.info("Updating the start lat/lng ({},{}) for spanid : {}".format(start_lat, start_lng, spans[span_index]['spanId']))
-                spans[span_index]['start_lat'] = start_lat
-                spans[span_index]['start_lng'] = start_lng
+            elif time[0] == "start_time":
+                logger.info(
+                    "Updating the start lat/lng  to ({},{}) for spanid : {}".format(
+                        start_lat, start_lng, spans[span_index]["spanId"]
+                    )
+                )
+
+                if start_lng is None or start_lng is None:
+                    logger.warning(
+                        "Start lat/lng are None. Will not update the start lat/lng"
+                    )
+                else:
+                    spans[span_index]["start_lat"] = start_lat
+                    spans[span_index]["start_lng"] = start_lng
             # if end time is changed - update end gps too
             elif time[0] == "end_time":
-                spans[span_index]['end_lat'] = end_lat
-                spans[span_index]['end_lng'] = end_lng
+
+                logger.info(
+                    "Updating the end lat/lng to ({},{}) for spanid : {}".format(
+                        end_lat, end_lng, spans[span_index]["spanId"]
+                    )
+                )
+                if end_lng is None or end_lng is None:
+                    logger.warning(
+                        "End lat/lng are None. Will not update the End lat/lng"
+                    )
+                else:
+                    spans[span_index]["end_lat"] = end_lat
+                    spans[span_index]["end_lng"] = end_lng
 
     return spans
 
 
-def process_spans(all_spans, array_start_time, array_end_time, start_lat, start_lng, end_lat, end_lng):
+def process_spans(
+    all_spans: List,
+    array_start_time,
+    array_end_time,
+    start_lat: str,
+    start_lng: str,
+    end_lat: str,
+    end_lng: str,
+):
     logger.info("Process function start time : {}".format(array_start_time))
     logger.info("Process function end time : {}".format(array_end_time))
-    # logger.info("all spans provided are : {}".format(all_spans))
 
+    # if no spans exists, create a new one
     if len(all_spans) == 0:
         newly_created_span = create_span(array_start_time[0], array_end_time[0])
-        # create the start and end gps
-        if (start_lat is not None) and (end_lat is not None) and (start_lng is not None) and (end_lng is not None):
-            newly_created_span['start_lat'] =  start_lat
-            newly_created_span['start_lng'] = start_lng
-            newly_created_span['end_lat'] =  end_lat
-            newly_created_span['end_lng'] = end_lng
-        else:
-            logger.warn("Start lat, lng, end lat lng are none, will not update the GPS coordinates of the span")
+
+        # set the start/end lat lng to which ever one is non zero
+        if (start_lat is not None) and (end_lat is None):
+            logger.warning("End lat is None, Setting it equal to start lat")
+            end_lat = start_lat
+        if (end_lat is not None) and (start_lat is None):
+            logger.warning("Start lat is None, Setting it equal to end lat")
+            start_lat = end_lat
+        if (start_lng is not None) and (end_lng is None):
+            logger.warning("End lng is None, Setting it equal to start lng")
+            end_lng = start_lng
+        if (end_lng is not None) and (start_lng is None):
+            logger.warning("Start lng is None, Setting it equal to end lng")
+            start_lng = end_lng
+
+        newly_created_span["start_lat"] = start_lat
+        newly_created_span["start_lng"] = start_lng
+        newly_created_span["end_lat"] = end_lat
+        newly_created_span["end_lng"] = end_lng
 
         all_spans.append(newly_created_span)
         logger.warning(
@@ -508,23 +591,32 @@ def process_spans(all_spans, array_start_time, array_end_time, start_lat, start_
             array_start_time, array_end_time, all_spans
         )
 
-        # print(span_index, span_id, attrs_to_update)
-
         if span_index is None:
             logger.warning("No span Index found, so creating a new span")
             newly_created_span = create_span(
                 array_start_time[0], array_end_time[0]
             )
-            if (start_lat is not None) and (end_lat is not None) and (start_lng is not None) and (end_lng is not None):
-                # create the start and end gps
-                newly_created_span['start_lat'] =  start_lat
-                newly_created_span['start_lng'] = start_lng
-                newly_created_span['end_lat'] =  end_lat
-                newly_created_span['end_lng'] = end_lng
-            else:
-                logger.warn("Start lat, lng, end lat lng are none, will not update the GPS coordinates of the span")
 
+            # set the start/end lat lng to which ever one is non zero
+            if (start_lat is not None) and (end_lat is None):
+                logger.warning("End lat is None, Setting it equal to start lat")
+                end_lat = start_lat
+            if (end_lat is not None) and (start_lat is None):
+                logger.warning("Start lat is None, Setting it equal to end lat")
+                start_lat = end_lat
+            if (start_lng is not None) and (end_lng is None):
+                logger.warning("End lng is None, Setting it equal to start lng")
+                end_lng = start_lng
+            if (end_lng is not None) and (start_lng is None):
+                logger.warning("Start lng is None, Setting it equal to end lng")
+                start_lng = end_lng
+            # create the start and end gps
+            newly_created_span["start_lat"] = start_lat
+            newly_created_span["start_lng"] = start_lng
+            newly_created_span["end_lat"] = end_lat
+            newly_created_span["end_lng"] = end_lng
             all_spans.append(newly_created_span)
+
             return all_spans, newly_created_span["spanId"], True
 
         elif (span_index is not None) and attrs_to_update == []:
@@ -537,37 +629,18 @@ def process_spans(all_spans, array_start_time, array_end_time, start_lat, start_
             logger.info("Found a span. Updating {}".format(attrs_to_update))
             print(attrs_to_update)
             update_span(all_spans, span_index, attrs_to_update)
-            if (start_lat is not None) and (end_lat is not None) and (start_lng is not None) and (end_lng is not None):
-                update_span_gps(all_spans, span_index, attrs_to_update,  start_lat, start_lng, end_lat, end_lng)
-            else:
-                logger.warn("Start lat, lng, end lat lng are none, will not update the GPS coordinates of the span")
+            update_span_gps(
+                all_spans,
+                span_index,
+                attrs_to_update,
+                start_lat,
+                start_lng,
+                end_lat,
+                end_lng,
+            )
 
             return all_spans, span_id, True
 
-        # # If a span has been found, an index will be returned
-        # if span_index is not None and attrs_to_update != []:
-
-        # logger.info("Found Span: {}".format(span_id))
-
-        # for attr in attrs_to_update:
-        # logger.info("Update {} to {}".format(attr[0], attr[1]))
-        # all_spans = update_span(all_spans, span_index, attrs_to_update)
-
-        # return all_spans, span_index, True
-
-        # elif span_index is None and attrs_to_update == []:
-        # # create a new span
-        # newly_created_span = create_span(
-        # array_start_time[0], array_end_time[0]
-        # )
-        # all_spans.append(newly_created_span)
-
-        # return all_spans, newly_created_span, True
-        # elif span_index is not None and attrs_to_update != []:
-        # logger.warn("Span is existing, but no values to update ")
-
-        # # infill
-        # return all_spans, span_id, False
 
 
 def get_all_records_in_event2(event):
@@ -601,7 +674,9 @@ def get_all_records_in_event(event):
         )
 
         for d in decoded_rec["message"]["payload"]["context"]["tracking"]:
-            d["deviceId"] = decoded_rec["deviceId"] # take deviceID from outside the message
+            d["deviceId"] = decoded_rec[
+                "deviceId"
+            ]  # take deviceID from outside the message
 
         data = {
             "deviceId": decoded_rec["deviceId"],
@@ -648,9 +723,9 @@ def tag_data(rec, spanId):
 
 
 # def convert_to_putItem_format(item):
-    # return {
-        # "PutRequest": {"Item": dynamo_helper.serialize_to_ddb(item, serializer)}
-    # }
+# return {
+# "PutRequest": {"Item": dynamo_helper.serialize_to_ddb(item, serializer)}
+# }
 
 
 def update_modified_device_spans_in_dynamo(device_spans_dict):
@@ -750,8 +825,8 @@ def update_modified_device_spans_in_dynamo_using_ODM(date_device_ODM_object):
         objects_to_write = []
         SpanModel.Meta.table_name = env_vars["SpanDynamoDBTableName"] + date
         SpanModel._connection = (
-            None
-        )  # after changing model's table name - set it to none
+            None  # after changing model's table name - set it to none
+        )
         ddb = dynamo_dbcon(SpanModel, conn=Connection())
         ddb.connect()
 
@@ -851,8 +926,8 @@ def update_modified_device_spans_in_dynamo_using_ODM2(device_spans_dict):
             date.split("-")[::-1]
         )
         SpanModel._connection = (
-            None
-        )  # after changing model's table name - set it to none
+            None  # after changing model's table name - set it to none
+        )
 
         ddb = dynamo_dbcon(SpanModel, conn=Connection())
         ddb.connect()
@@ -986,7 +1061,7 @@ def find_date_device_combos_from_records(all_valid_records):
 
 
 def get_data_for_device_from_particular_table_using_OMD(
-    date_device_dictionary_list
+    date_device_dictionary_list,
 ):
     """
     Expected input : [{'date': '24112019', 'deviceId': '1'},
@@ -1013,8 +1088,8 @@ def get_data_for_device_from_particular_table_using_OMD(
 
         SpanModel.Meta.table_name = env_vars["SpanDynamoDBTableName"] + date
         SpanModel._connection = (
-            None
-        )  # after changing model's table name - set it to none
+            None  # after changing model's table name - set it to none
+        )
         ddb = dynamo_dbcon(SpanModel, conn=Connection())
         ddb.connect()
 
@@ -1045,7 +1120,9 @@ def get_data_for_device_from_particular_table_using_OMD(
                 data3[date][deviceId]["spans"] = format_spans(
                     json.loads(data3[date][deviceId]["spans"])
                 )
-                data3[date][deviceId]["spans"] = sort_data_by_date(data3[date][deviceId]["spans"], "end_time")
+                data3[date][deviceId]["spans"] = sort_data_by_date(
+                    data3[date][deviceId]["spans"], "end_time"
+                )
             except TypeError as e:
                 pass
 
@@ -1144,18 +1221,19 @@ def handler(event, context):
         # Find the span #
         #################
         # extract valid records only
-        valid_records_for_gps = [x for x in rec if x['gps']['status'] != "invalid"]
+        valid_records_for_gps = [
+            x for x in rec if x["gps"]["status"] != "invalid"
+        ]
         if len(valid_records_for_gps) > 0:
-            start_lat = valid_records_for_gps[0]["gps"]['lat']
-            start_lng = valid_records_for_gps[0]["gps"]['lng']
-            end_lat = valid_records_for_gps[-1]["gps"]['lat']
-            end_lng = valid_records_for_gps[-1]["gps"]['lng']
+            start_lat = valid_records_for_gps[0]["gps"]["lat"]
+            start_lng = valid_records_for_gps[0]["gps"]["lng"]
+            end_lat = valid_records_for_gps[-1]["gps"]["lat"]
+            end_lng = valid_records_for_gps[-1]["gps"]["lng"]
         else:
             start_lat = None
             start_lng = None
             end_lat = None
             end_lng = None
-
 
         array_end_time = rec[-1]["timeStamp"]
         array_start_time = rec[0]["timeStamp"]
@@ -1178,7 +1256,7 @@ def handler(event, context):
             start_lat,
             start_lng,
             end_lat,
-            end_lng
+            end_lng,
         )
 
         ############################################################
