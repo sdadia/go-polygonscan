@@ -957,7 +957,7 @@ def send_tagged_data_to_kinesis(tagged_data):
     tagged_data_as_kinesis_record_format = []
     for t in tagged_data:
         tagged_data_as_kinesis_record_format.append(
-            {"Data": json.dumps(t), "PartitionKey": str(t["spanId"])}
+            {"Data": json.dumps(t), "PartitionKey": str(t["deviceId"])}
         )
         logger.debug(
             "Tagged data as kinesis format : {}".format(
