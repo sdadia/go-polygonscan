@@ -187,6 +187,16 @@ Resources:
             - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref SpanTablePrefix ,Stage: !Ref Stage }
           OutputKinesisStreamName: !Ref TaggedDataStream
 
+          
+      # Input Event Pending Kinesis Stream Creation For Decompressed/Enriched Data 
+      Events:
+        KinesisSource:
+          Type: Kinesis
+          Properties:
+            Stream: !Ref ProcessedTelematicsStream
+            StartingPosition: TRIM_HORIZON
+            BatchSize: 100
+            Enabled: true
 
   #
   # Invoked via external Lambda function
