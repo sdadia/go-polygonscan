@@ -212,7 +212,12 @@ def get_trips_pandas(
         del sorted_list_of_dicts[t]
     # pprint(sorted_list_of_dicts)
 
+    # if after sorting no spans are found, dont proceed
     df = pd.DataFrame(sorted_list_of_dicts)
+    if df.empty:
+        logger.warn("No spans are in the given time range ")
+        return {}
+
     df = df[df.start_time != df.end_time]
 
     df[["start_time_", "end_time_"]] = df[["start_time", "end_time"]].apply(
