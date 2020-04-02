@@ -676,7 +676,7 @@ def handler(event, context):
     start_day = ciso8601.parse_datetime(event["start_datetime"])
     date = start_day
     end_day = ciso8601.parse_datetime(event["end_datetime"])
-    while date <= end_day:
+    while date.date() <= end_day.date():
         date_device_dictionary_list.append(
             {
                 "deviceId": str(event["deviceId"]),
@@ -684,7 +684,7 @@ def handler(event, context):
             }
         )
         date = date + datetime.timedelta(days=1)
-
+    
     # get the spans from different tables between these start and end time
     date_device_ODM_object = get_spans_for_device_from_partiuclar_table(
         date_device_dictionary_list
