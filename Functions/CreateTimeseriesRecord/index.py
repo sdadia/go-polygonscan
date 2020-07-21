@@ -7,7 +7,7 @@ import boto3
 import botocore.session
 import ciso8601
 import datetime
-from typing import List
+from typing import List, Dict
 
 # import dynamo_helper
 import itertools
@@ -662,21 +662,25 @@ def get_all_records_in_event2(event):
     return all_records
 
 
-def get_all_records_in_event(event):
+def get_all_records_in_event(event) -> List[List[Dict]]:
     logger.info("Getting all the records from event")
 
     all_records = []  # holds all records
     for rec in event["Records"]:
         data = {}
 
+
         decoded_rec = json.loads(
             b64decode(rec["kinesis"]["data"]).decode("utf-8")
         )
+
 
         for d in decoded_rec["message"]["payload"]["context"]["tracking"]:
             d["deviceId"] = decoded_rec[
                 "deviceId"
             ]  # take deviceID from outside the message
+            # take the mileage from outside the message
+            d['mileage'] = decoded_rec['message']['payload']['context']['systemMetrics']['mileage']
 
         data = {
             "deviceId": decoded_rec["deviceId"],

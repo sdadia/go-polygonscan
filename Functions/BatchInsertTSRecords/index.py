@@ -73,6 +73,7 @@ def put_data_into_TS_dynamo_modelC(data):
                 "span_id": str(d["spanId"]),
                 "tstime": ciso8601.parse_datetime(d["timestamp"]).timestamp(),
                 "timezone" : str(d["timezone"]),
+                "mileage": str(d["mileage"]),
                 "dst" : str(d['offset']),
                 "speed": str(d["speed"]),
                 "io": str(d["io"]),
