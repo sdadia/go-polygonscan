@@ -24,6 +24,7 @@ from pvapps_odm.ddbcon import dynamo_dbcon
 from pvapps_odm.Schema.models import TSModelC
 from pvapps_odm.ddbcon import Connection
 
+
 logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
@@ -205,7 +206,7 @@ class TestBatchTSInsert(unittest.TestCase):
             self.assertEqual(hash(m1), hash(m2))
 
     def test_put_data_into_TS_dynamo_modelC_duplicate_data_only_span_ts_are_same(
-            self,
+        self,
     ):
         data = [
             {
