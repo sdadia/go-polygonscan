@@ -18,8 +18,9 @@ os.environ[
 from pvapps_odm.Schema.models import SpanModel
 
 SpanModel.Meta.table_name = os.environ[
-                                "SpanDynamoDBTableName"
-                            ] + datetime.datetime.utcnow().strftime("%d%m%Y")
+    "SpanDynamoDBTableName"
+] + datetime.datetime.utcnow().strftime("%d%m%Y")
+
 
 logging.getLogger("Functions.CreateTimeseriesRecord.index").setLevel(
     logging.ERROR
@@ -41,6 +42,7 @@ from Functions.CreateTimeseriesRecord.index import (
     _split_span_across_2_days,
     _map_device_spans_to_date,
 )
+
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
@@ -74,9 +76,9 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         "Functions.CreateTimeseriesRecord.index.get_all_records_in_event"
     )
     def test_handler_mock(
-            self,
-            mock_get_all_records_in_event,
-            mock_get_spans_for_devices_from_DAX_batch_usingODM,
+        self,
+        mock_get_all_records_in_event,
+        mock_get_spans_for_devices_from_DAX_batch_usingODM,
     ):
         mock_get_all_records_in_event.return_value = [
             [
@@ -143,161 +145,174 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         logger.debug("Event is : {}".format(event))
         all_records = get_all_records_in_event(event)
 
-        expected_all_records = [[{'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '161.310',
-                                         'gpsTime': '2020-07-21T12:06:15.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.02',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:13.712Z',
-                                 'timezone': '+00:00'},
-                                {'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '26.630',
-                                         'gpsTime': '2020-07-21T12:06:16.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.02',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:14.712Z',
-                                 'timezone': '+00:00'},
-                                {'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '51.650',
-                                         'gpsTime': '2020-07-21T12:06:17.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.00',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:15.712Z',
-                                 'timezone': '+00:00'},
-                                {'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '155.280',
-                                         'gpsTime': '2020-07-21T12:06:18.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.00',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:16.712Z',
-                                 'timezone': '+00:00'},
-                                {'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '328.240',
-                                         'gpsTime': '2020-07-21T12:06:19.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.02',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:17.712Z',
-                                 'timezone': '+00:00'},
-                                {'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '51.850',
-                                         'gpsTime': '2020-07-21T12:06:20.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.00',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:18.732Z',
-                                 'timezone': '+00:00'},
-                                {'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '165.800',
-                                         'gpsTime': '2020-07-21T12:06:21.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.02',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:19.732Z',
-                                 'timezone': '+00:00'},
-                                {'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '11.410',
-                                         'gpsTime': '2020-07-21T12:06:22.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.06',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:20.732Z',
-                                 'timezone': '+00:00'},
-                                {'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '230.240',
-                                         'gpsTime': '2020-07-21T12:06:23.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.04',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:21.732Z',
-                                 'timezone': '+00:00'},
-                                {'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '55.810',
-                                         'gpsTime': '2020-07-21T12:06:24.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.02',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:22.752Z',
-                                 'timezone': '+00:00'},
-                                {'acc': '1',
-                                 'deviceId': 'cfac81e1-65de-47c4-a195-2820025cebbf',
-                                 'gps': {'course': '97.730',
-                                         'gpsTime': '2020-07-21T12:06:25.000Z',
-                                         'lat': '53.583338N',
-                                         'lng': '6.131003W',
-                                         'speed': '0.02',
-                                         'status': 'valid'},
-                                 'io': '11111111',
-                                 'mileage': '0',
-                                 'offset': '+00:00',
-                                 'prevAcc': '1',
-                                 'timeStamp': '2020-07-21T12:06:23.745Z',
-                                 'timezone': '+00:00'}]]
+        logger.debug(
+            "Extracted records are : \n{}".format(pformat(all_records))
+        )
 
+        expected_all_records = [
+            [
+                {
+                    "acc": "0",
+                    "deviceId": "123",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:05Z",
+                        "alt": "41.00",
+                        "course": "63.60",
+                        "geoid": "55.00",
+                        "lat": "5319.8250N",
+                        "lng": "622.34220W",
+                        "speed": "0.28",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:05.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "123",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:06Z",
+                        "alt": "41.00",
+                        "course": "148.87",
+                        "geoid": "55.00",
+                        "lat": "5319.8250N",
+                        "lng": "622.34210W",
+                        "speed": "0.83",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:06.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "123",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:07Z",
+                        "alt": "41.00",
+                        "course": "137.71",
+                        "geoid": "55.00",
+                        "lat": "5319.8249N",
+                        "lng": "622.34200W",
+                        "speed": "0.52",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:07.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "123",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:08Z",
+                        "alt": "41.10",
+                        "course": "289.18",
+                        "geoid": "55.00",
+                        "lat": "5319.8249N",
+                        "lng": "622.34190W",
+                        "speed": "0.69",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:08.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "123",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:09Z",
+                        "alt": "41.10",
+                        "course": "250.05",
+                        "geoid": "55.00",
+                        "lat": "5319.8249N",
+                        "lng": "622.34210W",
+                        "speed": "0.76",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:09.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "123",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:10Z",
+                        "alt": "41.10",
+                        "course": "288.74",
+                        "geoid": "55.00",
+                        "lat": "5319.8249N",
+                        "lng": "622.34230W",
+                        "speed": "1.06",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:10.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "123",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:11Z",
+                        "alt": "41.10",
+                        "course": "324.73",
+                        "geoid": "55.00",
+                        "lat": "5319.8249N",
+                        "lng": "622.34250W",
+                        "speed": "1.13",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:11.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "123",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:12Z",
+                        "alt": "41.10",
+                        "course": "335.31",
+                        "geoid": "55.00",
+                        "lat": "5319.8248N",
+                        "lng": "622.34210W",
+                        "speed": "1.37",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:12.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "123",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:13Z",
+                        "alt": "41.10",
+                        "course": "326.74",
+                        "geoid": "55.00",
+                        "lat": "5319.8246N",
+                        "lng": "622.34160W",
+                        "speed": "0.98",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:13.154Z",
+                },
+                {
+                    "acc": "0",
+                    "deviceId": "123",
+                    "gps": {
+                        "GPSTime": "2019-05-22T10:45:14Z",
+                        "alt": "41.10",
+                        "course": "326.74",
+                        "geoid": "55.00",
+                        "lat": "5319.8246N",
+                        "lng": "622.34160W",
+                        "speed": "0.98",
+                        "status": "1",
+                    },
+                    "io": "00000000",
+                    "timeStamp": "2019-05-22T10:45:14.154Z",
+                },
+            ]
+        ]
         print(all_records)
 
         self.assertEqual(len(all_records), len(expected_all_records))
@@ -447,6 +462,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         self.assertEqual(len(valid_data), 0)
         logging.info("Testing remove_invalid_trip_data...Done")
 
+
     def test_get_unique_device_ids_from_records(self):
         logging.info("Testing get_unique_device_ids_from_records")
         all_records = [
@@ -540,7 +556,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
 
     @mock.patch("Functions.CreateTimeseriesRecord.index.ddb")
     def test_get_spans_for_devices_from_DAX_batch_usingODM_no_spans_exist(
-            self, mock_dbcon
+        self, mock_dbcon
     ):
         mock_dbcon.batch_get.return_value = []
         ans = get_spans_for_devices_from_DAX_batch_usingODM(
@@ -550,7 +566,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
 
     @mock.patch("Functions.CreateTimeseriesRecord.index.ddb")
     def test_get_spans_for_devices_from_DAX_batch_usingODM_span_exist(
-            self, mock_dbcon
+        self, mock_dbcon
     ):
         data_for_spans = {
             "deviceId": "123",
@@ -1433,7 +1449,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
         }
         day_1_span, day_2_span = _split_span_across_2_days(data)
         for e1, e2 in zip(
-                [day_1_span, day_2_span], [expected_day_1_span, expected_day_2_span]
+            [day_1_span, day_2_span], [expected_day_1_span, expected_day_2_span]
         ):
             self.assertEqual(e1["spanId"], e2["spanId"])
             self.assertEqual(e1["start_time"], e2["start_time"])
@@ -1678,7 +1694,7 @@ class TestCreateTimeSeriesRecord(unittest.TestCase):
 class TestProcessSpans(unittest.TestCase):
     @mock.patch("Functions.CreateTimeseriesRecord.index.generate_uuid")
     def test_process_spans_first_time_entry_start_lat_not_exist(
-            self, mock_generate_uuid
+        self, mock_generate_uuid
     ):
         mock_generate_uuid.return_value = "1abc"
         current_device_spans = []
@@ -1715,7 +1731,7 @@ class TestProcessSpans(unittest.TestCase):
 
     @mock.patch("Functions.CreateTimeseriesRecord.index.generate_uuid")
     def test_process_spans_first_time_entry_end_lat_not_exist(
-            self, mock_generate_uuid
+        self, mock_generate_uuid
     ):
         mock_generate_uuid.return_value = "1abc"
         current_device_spans = []
@@ -1862,7 +1878,7 @@ class TestProcessSpans(unittest.TestCase):
 
     @mock.patch("Functions.CreateTimeseriesRecord.index.generate_uuid")
     def test_process_spans_right_new_span_start_lat_lng_does_not_exist(
-            self, mock_generate_uuid
+        self, mock_generate_uuid
     ):
         """
         Span     x----------------------x
@@ -1998,7 +2014,7 @@ class TestProcessSpans(unittest.TestCase):
         self.assertEqual(all_spans[-1]["end_lng"], "end_lng")
 
     def test_process_spans_right_ovelap_dont_update_end_lat_long_as_they_areNone(
-            self,
+        self,
     ):
         """
         Dont update the end lat/lat even if we update the end_time as they are none
@@ -2065,7 +2081,7 @@ class TestProcessSpans(unittest.TestCase):
         self.assertEqual(all_spans[-1]["end_lat"], "3")
         self.assertEqual(all_spans[-1]["end_lng"], "4")
 
-    def test_process_spans_first_message_with_valid_gps(self, ):
+    def test_process_spans_first_message_with_valid_gps(self,):
         """
         The span exists but this message contains the first valid gps coordinates
         Span     x----------------------x
