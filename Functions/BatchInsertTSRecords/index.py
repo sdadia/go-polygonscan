@@ -73,6 +73,7 @@ def put_data_into_TS_dynamo_modelC(data):
                 "span_id": str(d["spanId"]),
                 "tstime": ciso8601.parse_datetime(d["timestamp"]).timestamp(),
                 "timezone" : str(d["timezone"]),
+                "mileage": str(d["mileage"]),
                 "dst" : str(d['offset']),
                 "speed": str(d["speed"]),
                 "io": str(d["io"]),
@@ -133,6 +134,7 @@ def handler(event, context):
     logger.info("Event is : {}".format(event))
 
     data = extract_data_from_kinesis(event)
+    logger.info("Extracted data is : {}".format(data))
 
     put_data_into_TS_dynamo_modelC(data)
 

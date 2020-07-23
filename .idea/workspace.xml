@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="2f4e2684-6ffa-4e30-ba42-0e0ce4834de8" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/Functions/BatchInsertTSRecords/index.py" beforeDir="false" afterPath="$PROJECT_DIR$/Functions/BatchInsertTSRecords/index.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Functions/CreateTimeseriesRecord/index.py" beforeDir="false" afterPath="$PROJECT_DIR$/Functions/CreateTimeseriesRecord/index.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Tests/UnitTests/sample_span_calculation_input.json" beforeDir="false" afterPath="$PROJECT_DIR$/Tests/UnitTests/sample_span_calculation_input.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Tests/UnitTests/test_create_timeseries_record.py" beforeDir="false" afterPath="$PROJECT_DIR$/Tests/UnitTests/test_create_timeseries_record.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="1ezlDNeAtBOAt1F9okbXo21njSH" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="last_opened_file_path" value="$USER_HOME$/docker-compose.yml" />
+    <property name="node.js.detected.package.eslint" value="true" />
+    <property name="node.js.detected.package.tslint" value="true" />
+    <property name="node.js.path.for.package.eslint" value="project" />
+    <property name="node.js.path.for.package.tslint" value="project" />
+    <property name="node.js.selected.package.eslint" value="(autodetect)" />
+    <property name="node.js.selected.package.tslint" value="(autodetect)" />
+    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
+  </component>
+  <component name="RunManager" selected="Python.index">
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <module name="trip-calculation" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="true" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="index" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="trip-calculation" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Functions/BatchInsertTSRecords" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Functions/BatchInsertTSRecords/index.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="true" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unittests for test_create_timeseries_record.TestCreateTimeSeriesRecord" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <module name="trip-calculation" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Tests/UnitTests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;test_create_timeseries_record.TestCreateTimeSeriesRecord&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unittests for test_create_timeseries_record.TestCreateTimeSeriesRecord.test_get_all_records_in_event" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <module name="trip-calculation" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Tests/UnitTests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;test_create_timeseries_record.TestCreateTimeSeriesRecord.test_get_all_records_in_event&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unittests in test_create_timeseries_record.py" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <module name="trip-calculation" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Tests/UnitTests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/Tests/UnitTests/test_create_timeseries_record.py&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.index" />
+        <item itemvalue="Python tests.Unittests for test_create_timeseries_record.TestCreateTimeSeriesRecord.test_get_all_records_in_event" />
+        <item itemvalue="Python tests.Unittests for test_create_timeseries_record.TestCreateTimeSeriesRecord" />
+        <item itemvalue="Python tests.Unittests in test_create_timeseries_record.py" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="StructureViewFactory">
+    <option name="ACTIVE_ACTIONS" value=",SHOW_INHERITED" />
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="2f4e2684-6ffa-4e30-ba42-0e0ce4834de8" name="Default Changelist" comment="" />
+      <created>1595332181278</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1595332181278</updated>
+      <workItem from="1595332182745" duration="1730000" />
+      <workItem from="1595333996808" duration="3007000" />
+      <workItem from="1595403486447" duration="2271000" />
+      <workItem from="1595495586609" duration="617000" />
+      <workItem from="1595499186756" duration="967000" />
+      <workItem from="1595504201610" duration="171000" />
+      <workItem from="1595507649843" duration="1038000" />
+      <workItem from="1595511560425" duration="1878000" />
+      <workItem from="1595515637064" duration="492000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="2" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="741" y="231" width="426" height="477" key="FileChooserDialogImpl" timestamp="1595507960498">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state x="741" y="231" width="426" height="477" key="FileChooserDialogImpl/0.0.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1595507960498" />
+    <state width="1874" height="388" key="GridCell.Tab.0.bottom" timestamp="1595515955012">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1874" height="388" key="GridCell.Tab.0.bottom/0.0.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1595515955012" />
+    <state width="1874" height="388" key="GridCell.Tab.0.center" timestamp="1595515955011">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1874" height="388" key="GridCell.Tab.0.center/0.0.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1595515955011" />
+    <state width="1874" height="388" key="GridCell.Tab.0.left" timestamp="1595515955011">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1874" height="388" key="GridCell.Tab.0.left/0.0.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1595515955011" />
+    <state width="1874" height="388" key="GridCell.Tab.0.right" timestamp="1595515955012">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1874" height="388" key="GridCell.Tab.0.right/0.0.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1595515955012" />
+    <state width="1874" height="356" key="GridCell.Tab.1.bottom" timestamp="1595333913401">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1874" height="356" key="GridCell.Tab.1.bottom/0.0.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1595333913401" />
+    <state width="1874" height="356" key="GridCell.Tab.1.center" timestamp="1595333913401">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1874" height="356" key="GridCell.Tab.1.center/0.0.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1595333913401" />
+    <state width="1874" height="356" key="GridCell.Tab.1.left" timestamp="1595333913401">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1874" height="356" key="GridCell.Tab.1.left/0.0.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1595333913401" />
+    <state width="1874" height="356" key="GridCell.Tab.1.right" timestamp="1595333913401">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1874" height="356" key="GridCell.Tab.1.right/0.0.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1595333913401" />
+    <state x="455" y="130" key="SettingsEditor" timestamp="1595405274110">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state x="455" y="130" key="SettingsEditor/0.0.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1595405274110" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/trip_calculation$index.coverage" NAME="index Coverage Results" MODIFIED="1595332612243" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Functions/CreateTimeseriesRecord" />
+    <SUITE FILE_PATH="coverage/trip_calculation$Unittests_in_test_create_timeseries_record_py.coverage" NAME="Unittests in test_create_timeseries_record.py Coverage Results" MODIFIED="1595332431581" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Tests/UnitTests" />
+    <SUITE FILE_PATH="coverage/trip_calculation$Unittests_for_test_create_timeseries_record_TestCreateTimeSeriesRecord_test_get_all_records_in_event.coverage" NAME="Unittests for test_create_timeseries_record.TestCreateTimeSeriesRecord.test_get_all_records_in_event Coverage Results" MODIFIED="1595515933058" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Tests/UnitTests" />
+    <SUITE FILE_PATH="coverage/trip_calculation$Unittests_for_test_create_timeseries_record_TestCreateTimeSeriesRecord.coverage" NAME="Unittests for test_create_timeseries_record.TestCreateTimeSeriesRecord Coverage Results" MODIFIED="1595333825209" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Tests/UnitTests" />
+  </component>
+</project>
