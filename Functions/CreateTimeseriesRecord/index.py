@@ -677,6 +677,7 @@ def get_all_records_in_event(event):
             d["deviceId"] = decoded_rec[
                 "deviceId"
             ]  # take deviceID from outside the message
+            d['mileage'] = decoded_rec['message']['payload']['context']['systemMetrics']['mileage']
 
         data = {
             "deviceId": decoded_rec["deviceId"],
