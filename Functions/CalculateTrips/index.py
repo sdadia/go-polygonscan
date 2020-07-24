@@ -45,8 +45,8 @@ logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 ##      Environment Variable Decryption/Decoding    ##
 ##                                                  ##
 ######################################################
-os.environ['TSModelCTable'] = "pvcam-app-logic-manager-prod-TelematicsStreamingPlatform-SZZDVZUOYXMA-TripCalculation-1U9J1NQ70MNC9-TimeseriesTable-1PTMMJG3QMJNZ"
-os.environ['SpanDynamoDBTableName'] = "pvcam-prod-TripCalculation-SpanTable-"
+# os.environ['TSModelCTable'] = "pvcam-app-logic-manager-prod-TelematicsStreamingPlatform-SZZDVZUOYXMA-TripCalculation-1U9J1NQ70MNC9-TimeseriesTable-1PTMMJG3QMJNZ"
+# os.environ['SpanDynamoDBTableName'] = "pvcam-prod-TripCalculation-SpanTable-"
 env_vars = {}
 envVarsList = ["SpanDynamoDBTableName", "TSModelCTable"]
 
@@ -767,11 +767,11 @@ def handler(event, context):
     logger.info("Calculated trips are : \n{}".format(pformat(trips)))
     return trips
 
-
-event = {
-    "deviceId": "91b49a20-28b5-49aa-a8ac-8cf5649377d7",
-    "end_datetime": "2020-07-24T23:00:59Z",
-    "start_datetime": "2020-07-23T00:00:00Z",
-    "trip_time_diff": 10
-}
-handler(event, None)
+#
+# event = {
+#     "deviceId": "91b49a20-28b5-49aa-a8ac-8cf5649377d7",
+#     "end_datetime": "2020-07-24T23:00:59Z",
+#     "start_datetime": "2020-07-23T00:00:00Z",
+#     "trip_time_diff": 10
+# }
+# handler(event, None)
