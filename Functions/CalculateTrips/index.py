@@ -21,12 +21,12 @@ from pvapps_odm.Schema.models import (
     SpanModel,
     AggregationModel,
     StationaryIdlingModel,
+    TSModelC
 )
 from pvapps_odm.ddbcon import dynamo_dbcon
 from pvapps_odm.ddbcon import Connection
 
 from typing import Dict, List
-
 
 root = logging.getLogger()
 if root.handlers:
@@ -45,8 +45,10 @@ logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 ##      Environment Variable Decryption/Decoding    ##
 ##                                                  ##
 ######################################################
+# os.environ['TSModelCTable'] = "pvcam-app-logic-manager-prod-TelematicsStreamingPlatform-SZZDVZUOYXMA-TripCalculation-1U9J1NQ70MNC9-TimeseriesTable-1PTMMJG3QMJNZ"
+# os.environ['SpanDynamoDBTableName'] = "pvcam-prod-TripCalculation-SpanTable-"
 env_vars = {}
-envVarsList = ["SpanDynamoDBTableName"]
+envVarsList = ["SpanDynamoDBTableName", "TSModelCTable"]
 
 for var in envVarsList:
     if var in os.environ.keys():
@@ -63,6 +65,10 @@ logging.info("Environment variables are : {}".format(env_vars))
 ddb_stationary_idling = dynamo_dbcon(AggregationModel, conn=Connection())
 ddb_stationary_idling.connect()
 
+TSModelC.Meta.table_name = os.environ["TSModelCTable"]
+ddb_ts = dynamo_dbcon(TSModelC, conn=Connection())
+ddb_ts.connect()
+
 # enable dax
 if "DAXUrl" in env_vars:
     logging.warning("Using DAX")
@@ -74,7 +80,6 @@ if "DAXUrl" in env_vars:
 else:
     logging.warning("Not using DAX")
     dynamo_dax_client = boto3.client("dynamodb")
-
 
 ######################################################
 ##                                                  ##
@@ -97,10 +102,10 @@ DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def get_trips_pandas(
-    sorted_list_of_dicts: List[Dict],
-    user_start_time: str,
-    user_end_time: str,
-    time_diff_between_spans: int,
+        sorted_list_of_dicts: List[Dict],
+        user_start_time: str,
+        user_end_time: str,
+        time_diff_between_spans: int,
 ):
     """
     Finds the relevant trips from the sorted list of spans. This function internally sorts the data
@@ -176,7 +181,7 @@ def get_trips_pandas(
         # query y--------------------y
         # keep this span
         if (query_start_time < span_start_time) and (query_end_time) > (
-            span_end_time
+                span_end_time
         ):
             continue
         # case 2: left overlap
@@ -184,7 +189,7 @@ def get_trips_pandas(
         # query   y----------y
         # keep this span
         elif (query_start_time < span_start_time) and (
-            query_end_time > span_start_time
+                query_end_time > span_start_time
         ):
             continue
         # case 3: right overlap
@@ -192,7 +197,7 @@ def get_trips_pandas(
         # query                 y----------y
         # keep this span
         elif (query_start_time < span_end_time) and (
-            query_end_time > span_end_time
+                query_end_time > span_end_time
         ):
             continue
         # case 4: query inside
@@ -200,7 +205,7 @@ def get_trips_pandas(
         # query           y----y
         # keep this span
         elif (query_start_time > span_start_time) and (
-            query_end_time < span_end_time
+                query_end_time < span_end_time
         ):
             continue
         else:
@@ -284,8 +289,8 @@ def get_trips_pandas(
                 }
             )
         )
-        .rename(columns={"end_time_": "end_time", "start_time_": "start_time"})
-        .to_dict(orient="index")
+            .rename(columns={"end_time_": "end_time", "start_time_": "start_time"})
+            .to_dict(orient="index")
     )
 
     for t in final_result_set:
@@ -399,8 +404,8 @@ def string_time_to_unix_epoch(data):
         for date in data:
             ans.append(
                 ciso8601.parse_datetime(date)
-                .replace(tzinfo=pytz.UTC)
-                .timestamp()
+                    .replace(tzinfo=pytz.UTC)
+                    .timestamp()
             )
 
         return ans
@@ -430,7 +435,7 @@ def find_le(a, x):
 
 
 def keep_relevant_data_for_stationary_idling_btw_start_end_time(
-    start_time: float, end_time: float, data
+        start_time: float, end_time: float, data
 ):
     assert end_time > start_time, logger.error(
         "Start time cannot be less than end time"
@@ -471,7 +476,7 @@ def keep_relevant_data_for_stationary_idling_btw_start_end_time(
 
 
 def aggregate_stationary_idling_time(
-    deviceId: str, trip_start_time: str, trip_end_time: str
+        deviceId: str, trip_start_time: str, trip_end_time: str
 ) -> Dict:
     """
     Function finds the stationary and idling time for a trip
@@ -514,8 +519,8 @@ def aggregate_stationary_idling_time(
             )
             if post_correction_needed:
                 total_stationary_time += (
-                    string_time_to_unix_epoch(trip_end_time)
-                    - stationary_state_transition["time"][-1]
+                        string_time_to_unix_epoch(trip_end_time)
+                        - stationary_state_transition["time"][-1]
                 )
         else:
             logger.warning(
@@ -542,8 +547,8 @@ def aggregate_stationary_idling_time(
 
             if post_correction_needed:
                 total_idling_time += (
-                    string_time_to_unix_epoch(trip_end_time)
-                    - idling_state_transition["time"][-1]
+                        string_time_to_unix_epoch(trip_end_time)
+                        - idling_state_transition["time"][-1]
                 )
 
         else:
@@ -562,7 +567,7 @@ def aggregate_stationary_idling_time(
 
 
 def get_spans_for_device_from_partiuclar_table(
-    date_device_dictionary_list: List,
+        date_device_dictionary_list: List,
 ):
     """
     Expected input : [{'date': '24112019', 'deviceId': '1'},
@@ -634,7 +639,7 @@ def get_spans_for_device_from_partiuclar_table(
 
 
 def format_spans(
-    span_list, to_format_as_time=["start_time", "end_time"], as_datetime=True
+        span_list, to_format_as_time=["start_time", "end_time"], as_datetime=True
 ):
     logger.info("Formatting span data")
 
@@ -689,7 +694,7 @@ def handler(event, context):
             }
         )
         date = date + datetime.timedelta(days=1)
-    
+
     # get the spans from different tables between these start and end time
     date_device_ODM_object = get_spans_for_device_from_partiuclar_table(
         date_device_dictionary_list
@@ -728,6 +733,25 @@ def handler(event, context):
 
             # # find average speed - dan will find the speed
             # trips[trip_id]["metrics"] = aggregate_speed_for_trip(spanss)
+            # ddb.get_object(data["span_id"], data["tstime"])
+            first_point = ddb_ts.get_object(trips[trip_id]['spanId'][0],
+                                            ciso8601.parse_datetime(trips[trip_id]['start_time']).timestamp())
+            last_point = ddb_ts.get_object(trips[trip_id]['spanId'][-1],
+                                           ciso8601.parse_datetime(trips[trip_id]['end_time']).timestamp()
+                                           )
+            try:
+                last_point_mileage = last_point.mileage
+                last_point_mileage = float(last_point_mileage)
+            except:
+                last_point_mileage = -1
+
+            try:
+                first_point_mileage = first_point.mileage
+                first_point_mileage = float(first_point_mileage)
+            except:
+                first_point_mileage = -1
+
+            trips[trip_id]["metrics"].update({"start_mileage": first_point_mileage, "end_mileage": last_point_mileage})
 
             # find the stationary and idling time
             stationry_idling_time_dict = aggregate_stationary_idling_time(
@@ -741,3 +765,12 @@ def handler(event, context):
 
     logger.info("Calculated trips are : \n{}".format(pformat(trips)))
     return trips
+
+#
+# event = {
+#     "deviceId": "91b49a20-28b5-49aa-a8ac-8cf5649377d7",
+#     "end_datetime": "2020-07-24T23:00:59Z",
+#     "start_datetime": "2020-07-23T00:00:00Z",
+#     "trip_time_diff": 10
+# }
+# handler(event, None)
