@@ -751,7 +751,6 @@ def handler(event, context):
             except:
                 first_point_mileage = -1
 
-
             trips[trip_id]["metrics"].update({"start_mileage": first_point_mileage, "end_mileage": last_point_mileage})
 
             # find the stationary and idling time
