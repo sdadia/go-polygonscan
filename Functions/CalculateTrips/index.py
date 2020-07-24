@@ -45,8 +45,8 @@ logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 ##      Environment Variable Decryption/Decoding    ##
 ##                                                  ##
 ######################################################
-# os.environ['TSModelCTable'] = "pvcam-app-logic-manager-prod-TelematicsStreamingPlatform-SZZDVZUOYXMA-TripCalculation-1U9J1NQ70MNC9-TimeseriesTable-1PTMMJG3QMJNZ"
-# os.environ['SpanDynamoDBTableName'] = "pvcam-prod-TripCalculation-SpanTable-"
+os.environ['TSModelCTable'] = "pvcam-app-logic-manager-prod-TelematicsStreamingPlatform-SZZDVZUOYXMA-TripCalculation-1U9J1NQ70MNC9-TimeseriesTable-1PTMMJG3QMJNZ"
+os.environ['SpanDynamoDBTableName'] = "pvcam-prod-TripCalculation-SpanTable-"
 env_vars = {}
 envVarsList = ["SpanDynamoDBTableName", "TSModelCTable"]
 
@@ -741,13 +741,16 @@ def handler(event, context):
                                            )
             try:
                 last_point_mileage = last_point.mileage
+                last_point_mileage = float(last_point_mileage)
             except:
-                last_point_mileage = None
+                last_point_mileage = -1
 
             try:
                 first_point_mileage = first_point.mileage
+                first_point_mileage = float(first_point_mileage)
             except:
-                first_point_mileage = None
+                first_point_mileage = -1
+
 
             trips[trip_id]["metrics"].update({"start_mileage": first_point_mileage, "end_mileage": last_point_mileage})
 
@@ -765,12 +768,10 @@ def handler(event, context):
     return trips
 
 
-
-#
-# event ={
-#   "deviceId": "1968306a-add5-42e6-958f-423caac6d4e1",
-#   "end_datetime": "2020-07-24T09:01:59Z",
-#   "start_datetime": "2020-07-24T09:07:59Z",
-#   "trip_time_diff": 10
-# }
-# pprint(handler(event, None))
+event = {
+    "deviceId": "91b49a20-28b5-49aa-a8ac-8cf5649377d7",
+    "end_datetime": "2020-07-24T23:00:59Z",
+    "start_datetime": "2020-07-23T00:00:00Z",
+    "trip_time_diff": 10
+}
+handler(event, None)
