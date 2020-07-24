@@ -220,7 +220,8 @@ Resources:
           AggDynamoDBTableName: !Sub
             - ${ProjectId}-${Stage}-${ServiceName}-${TableName}-
             - { ProjectId: !Ref ProjectId,ServiceName: !Ref ServiceName,TableName: !Ref AggregationTablePrefix ,Stage: !Ref Stage }
-          StationaryIdlingTransitionDynamoTable: !Ref StationaryIdlingTimeTable
+          StationaryIdlingTransitionDynamoTable: !Ref StationaryIdlingTimeTable,
+          TSModelCTable: !Ref TimeseriesTable
 
   #
   # Invoked via Kinesis Stream
