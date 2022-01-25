@@ -81,9 +81,9 @@ type MaticGasResponseStruct struct {
 	Message string `json:"message"`
 	Result  struct {
 		LastBlock       int32   `json:"LastBlock,string"`
-		safeGas         float32 `json:"safeGas,string"`
+		SafeGasPrice    float32 `json:"safeGasPrice,string"`
 		ProposeGasPrice float32 `json:"ProposeGasPrice,string"`
-		fastGas         float32 `json:"fastGas,string"`
+		FastGasPrice    float32 `json:"fastGasPrice,string"`
 		UsdPrice        float32 `json:"UsdPrice,string"`
 	} `json:"result"`
 }
@@ -106,9 +106,9 @@ func GetMaticGas() (fastGas float32, proposedGas float32, safeGas float32) {
 		log.Error("Cannot parse response from GetMaticGas into struct. Error is %s", err)
 	}
 
-	fastGas = responseStruct.Result.fastGas
+	fastGas = responseStruct.Result.FastGasPrice
 	proposedGas = responseStruct.Result.ProposeGasPrice
-	safeGas = responseStruct.Result.safeGas
+	safeGas = responseStruct.Result.SafeGasPrice
 	return fastGas, proposedGas, safeGas
 
 }
