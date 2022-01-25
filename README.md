@@ -17,5 +17,5 @@ var maticPrice float32 = api.GetLatestMaticUSDPrice()
 # Matic Gas
 * Get the fast, proposed, safe gas price
 ```go
-var fastGas, proposedGas, safeGas := api.GetMaticGas()
+var fastGas, proposedGas, safeGas float32 = api.GetMaticGas()
 ```
