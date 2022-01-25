@@ -6,17 +6,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
-	"strconv"
 )
 
 type AccountBalanceResponseStruct struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Result  string `json:"result"`
+	Status  string  `json:"status"`
+	Message string  `json:"message"`
+	Result  float64 `json:"result,string"`
 }
 
 // GetAccountBalance Returns the account balance of the address in Matic
-func GetAccountBalance(address string) float32 {
+func GetAccountBalance(address string) (balance float64) {
 
 	log.Infof("Creating query for getting account balance")
 
@@ -38,23 +37,23 @@ func GetAccountBalance(address string) float32 {
 		log.Error("Cannot parse response from getAccountBalance into struct")
 	}
 
-	balance, _ := strconv.ParseFloat(responseStruct.Result, 32)
-	return float32(balance) / 1e18
+	balance = responseStruct.Result / 1e18
+	return balance
 }
 
-type LatestMaticUSDPriceStruct struct {
+type LatestMaticUSDPriceResponseStruct struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 	Result  struct {
-		Maticbtc          string `json:"maticbtc"`
-		MaticbtcTimestamp string `json:"maticbtc_timestamp"`
-		Maticusd          string `json:"maticusd"`
-		MaticusdTimestamp string `json:"maticusd_timestamp"`
+		Maticbtc          float32 `json:"maticbtc,string"`
+		MaticbtcTimestamp uint32  `json:"maticbtc_timestamp,string"`
+		Maticusd          float32 `json:"maticusd,string"`
+		MaticusdTimestamp uint32  `json:"maticusd_timestamp,string"`
 	} `json:"result"`
 }
 
 //GetLatestMaticUSDPrice Returns the latest price of 1 MATIC.
-func GetLatestMaticUSDPrice() float32 {
+func GetLatestMaticUSDPrice() (price float32) {
 	log.Infof("Generating query for getting latest matic price")
 
 	var httpQuery = "https://api.polygonscan.com/api" +
@@ -65,14 +64,52 @@ func GetLatestMaticUSDPrice() float32 {
 	var response = runQuery(httpQuery)
 	log.Infof("Response is : %s", string(response))
 
-	var responseStruct LatestMaticUSDPriceStruct
+	var responseStruct LatestMaticUSDPriceResponseStruct
 	err := json.Unmarshal(response, &responseStruct)
 	if err != nil {
 		log.Error("Cannot parse response from getLatestMaticUSDPrice into struct")
 	}
 
-	price, _ := strconv.ParseFloat(responseStruct.Result.Maticusd, 32)
-	return float32(price)
+	price = responseStruct.Result.Maticusd
+
+	return price
+
+}
+
+type MaticGasResponseStruct struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Result  struct {
+		LastBlock       int32   `json:"LastBlock,string"`
+		safeGas         float32 `json:"safeGas,string"`
+		ProposeGasPrice float32 `json:"ProposeGasPrice,string"`
+		fastGas         float32 `json:"fastGas,string"`
+		UsdPrice        float32 `json:"UsdPrice,string"`
+	} `json:"result"`
+}
+
+//GetMaticGas Returns the current Safe, Proposed and Fast gas prices - returned values are in GWEI
+func GetMaticGas() (fastGas float32, proposedGas float32, safeGas float32) {
+	log.Infof("Generating query for getting latest gas fastGas")
+
+	var httpQuery = "https://api.polygonscan.com/api" +
+		"?module=gastracker" +
+		"&action=gasoracle"
+	log.Infof("Query is %s", httpQuery)
+
+	var response = runQuery(httpQuery)
+	log.Infof("Response is : %s", string(response))
+
+	var responseStruct MaticGasResponseStruct
+	err := json.Unmarshal(response, &responseStruct)
+	if err != nil {
+		log.Error("Cannot parse response from GetMaticGas into struct. Error is %s", err)
+	}
+
+	fastGas = responseStruct.Result.fastGas
+	proposedGas = responseStruct.Result.ProposeGasPrice
+	safeGas = responseStruct.Result.safeGas
+	return fastGas, proposedGas, safeGas
 
 }
 
