@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-type AccountBalanceResponse struct {
+type AccountBalanceResponseStruct struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 	Result  string `json:"result"`
@@ -32,14 +32,48 @@ func GetAccountBalance(address string) float32 {
 	log.Infof("Response is : %s", string(response))
 
 	// Convert response to struct
-	var responseStruct AccountBalanceResponse
+	var responseStruct AccountBalanceResponseStruct
 	err := json.Unmarshal(response, &responseStruct)
 	if err != nil {
-		log.Error("Cannot parse response from getAccountBalance endpoint")
+		log.Error("Cannot parse response from getAccountBalance into struct")
 	}
 
 	balance, _ := strconv.ParseFloat(responseStruct.Result, 32)
 	return float32(balance) / 1e18
+}
+
+type LatestMaticUSDPriceStruct struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Result  struct {
+		Maticbtc          string `json:"maticbtc"`
+		MaticbtcTimestamp string `json:"maticbtc_timestamp"`
+		Maticusd          string `json:"maticusd"`
+		MaticusdTimestamp string `json:"maticusd_timestamp"`
+	} `json:"result"`
+}
+
+//GetLatestMaticUSDPrice Returns the latest price of 1 MATIC.
+func GetLatestMaticUSDPrice() float32 {
+	log.Infof("Generating query for getting latest matic price")
+
+	var httpQuery = "https://api.polygonscan.com/api" +
+		"?module=stats" +
+		"&action=maticprice"
+	log.Infof("Query is %s", httpQuery)
+
+	var response = runQuery(httpQuery)
+	log.Infof("Response is : %s", string(response))
+
+	var responseStruct LatestMaticUSDPriceStruct
+	err := json.Unmarshal(response, &responseStruct)
+	if err != nil {
+		log.Error("Cannot parse response from getLatestMaticUSDPrice into struct")
+	}
+
+	price, _ := strconv.ParseFloat(responseStruct.Result.Maticusd, 32)
+	return float32(price)
+
 }
 
 //runQuery Runs the query for API
