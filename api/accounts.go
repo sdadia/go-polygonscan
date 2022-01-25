@@ -113,9 +113,36 @@ func GetMaticGas() (fastGas float32, proposedGas float32, safeGas float32) {
 
 }
 
+//type getBlockNumberByTimestampResponseStruct struct {
+//	Status  string `json:"status"`
+//	Message string `json:"message"`
+//	Result  int64 `json:"result,string"`
+//}
+//
+//func GetBlockNumberByTimestamp(timestamp time.Time) (blockNumber uint64) {
+//	log.Infof("Generating query for getting blocknumber by timestamp %s and %d", timestamp.UTC().String(), timestamp.Unix())
+//
+//	var httpQuery = fmt.Sprintf("https://api.polygonscan.com/api"+
+//		"?module=block"+
+//		"&action=getblocknobytime"+
+//		"&timestamp=%d", timestamp.UTC().Unix()-500)
+//	log.Infof("Query is %s", httpQuery)
+//
+//	var response = runQuery(httpQuery)
+//	log.Infof("Response is : %s", string(response))
+//
+//	var responseStruct getBlockNumberByTimestampResponseStruct
+//	err := json.Unmarshal(response, &responseStruct)
+//	if err != nil {
+//		log.Error("Cannot parse response for getting block number by timestamp. Error is %s", err)
+//	}
+//
+//	blockNumber = uint64(responseStruct.Result)
+//	return blockNumber
+//}
+
 //runQuery Runs the query for API
 func runQuery(query string) []byte {
-	apiKey := "824PHEVREU2TFPB3R7T2GR5XXJK1IJBGE2"
 
 	query += fmt.Sprintf("&apikey=%s", apiKey)
 	log.Debugf("Query is %s\n", query)
